@@ -22,6 +22,7 @@ pack:
 
 test: $(OUT)
 	./$(OUT) < testB1
+	./$(OUT) < testB2
 	./$(OUT) < testB3
 	# ./$(OUT) < test1
 	# ./$(OUT) < test2

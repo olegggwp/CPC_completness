@@ -22,10 +22,17 @@ main = do
     let parsed' = rights parsed
     let solutions = firstSol parsed'
     let firstTree = accGetNode $ head solutions
-    putStrLn $ prettyPrintNode firstTree
+    -- putStrLn $ prettyPrintNode firstTree
     let rededTree = deductionRemake firstTree []
-    putStrLn $ prettyPrintNode rededTree
+    -- putStrLn $ prettyPrintNode rededTree
 
+    putStrLn $ printRow $ last parsed'
+
+    putStrLn $ printNode rededTree
+
+
+printRow :: Row -> String
+printRow (ctx, term) = intercalate "," (map show ctx) ++ "|-" ++ show term
 
 
 prettyPrintNode :: Node a -> String
@@ -44,6 +51,14 @@ prettyPrintNode = go 0
     -- mapM_ (putStrLn . getStr) (reverse solutions)
     -- print "OK"
     -- mapM_ print parsed
+
+
+printNode :: Node a -> String
+printNode (Ax term idx _) = show term ++ "\n"
+printNode (Hyp term _) = show term ++ "\n"
+printNode (MP term n1 n2 a) = printNode n1 ++ printNode n2 ++ show term ++ "\n"
+printNode (Ded term n a) = printNode n ++ show term ++ "\n"
+
 
 
 data Term =
@@ -215,32 +230,15 @@ getAxiom term = case term of
       | otherwise -> Nothing
 
 
--- --------
--- check for hyp in context
 
 getHyp :: Row -> Maybe Int
 getHyp (ctx, term) = elemIndex term ctx
 
--- ------
--- Final code
-
-
-
-
 firstSol :: [Row] -> [Damn2]
 firstSol = foldl' getTree []
 
--- accInst :: Damn -> Row
--- accInst (x, _, _, _) = x
-
 accGetBool :: Damn -> Bool
 accGetBool (_, _, x, _) = x
-
--- accGetStr :: Damn -> String
--- accGetStr (_, x, _, _) = x
-
--- accGetDedForm :: Damn -> DedForm
--- accGetDedForm (_, _, _, x) = x
 
 showCtx :: [Term] -> String
 showCtx ctx = intercalate "," $ map show ctx
@@ -269,52 +267,6 @@ instance HasRow Damn where
 
 instance HasDedForm Damn where
     getDedForm (_, _, _, dedForm) = dedForm
-
-
-
--- getLineNig :: [Damn] -> Row -> [Damn]
--- getLineNig acc x=
---     let (ctx, term) = x
---         n = 1 + length acc
---         me = "[" ++ show n ++ "] " ++ showCtx ctx ++ "|-" ++ show term
---         ax = getAxiom term
---         hyp = getHyp x
---         ded = getDed x acc
---         modus = getModusPonens acc x
---         (linee, flag) =
---             -- debug
---             -- (show $ length acc, True)
-
-
-
---             case (ax, hyp, ded, modus) of
---             (Just idx, _,  _, _) ->
---                 (" [Ax. sch. " ++ show idx ++ "]" ,
---                 True)
-
---             (_, Just i, _, _) ->
---                 (" [Hyp. " ++ show (i+1) ++ "]", True)
-
---             (_, _, Just i, _) ->
---                 let
---                     ii = n-i-1
---                     add = if accGetBool (acc !! ii)
---                         then "" else "; from Incorrect"
---                 in
---                 (" [Ded. " ++ show (i) ++ add ++ "]", True)
-
---             (_, _,  _, Just (i, j)) ->
---                 let
---                     add = if accGetBool (acc !! i) && accGetBool (acc !! j)
---                         then "" else "; from Incorrect"
---                 in
---                 (" [M.P. " ++ show (n-j-1) ++ ", " ++ show (n-i-1) ++ add ++ "]", True)
-
-
-
---             _ -> (" [Incorrect]", False)
-    -- in (x, me ++ linee, flag, leftSortDed x) : acc
-
 
 
 -- ----------------------------------
@@ -385,10 +337,6 @@ isa10 (BNot (BNot a) :-> a')
     | (==) a a' = Just a
     | otherwise = Nothing
 isa10 _ = Nothing
-
-
-
-
 
 
 
@@ -476,17 +424,6 @@ data Todo = Add | Del
 
 type Moves = [(Term, Todo)]
 
--- moves пеердающийся дальше может меняться  только при прохождени Ded
-
-
--- head moves это первое что нужно сделать
-
-
--- data Node2 a = 
---     Ax2 Term Int a
---     | Hyp2 Term a
---     | MP2 Term (Node2 a) (Node2 a) a
-    -- | Ded Term (Node a) a
 
 
 
@@ -510,14 +447,7 @@ deductionRemake (Ax ax idx a) [] = Ax ax idx a
 deductionRemake nodeMe@(Ax ax idx a) (move:xs) =
     let
         noda = case move of
-            (al, Add) -> 
-                let
-                    hypp = Hyp al a
-                    likeax = deductionRemake nodeMe xs
-                    res = MP (getOnlyRight ax) hypp likeax a
-                in
-                    res
-            -- Ax ax idx a
+            (al, Add) -> nodeAdder nodeMe al xs
             (alpha, Del) -> MP (alpha :-> ax) (Ax ax idx a) (Ax (ax :-> alpha :-> ax) 1 a) a
     in
     deductionRemake noda xs
@@ -527,15 +457,7 @@ deductionRemake (Hyp hyp a) [] = Hyp hyp a
 deductionRemake nodeMe@(Hyp hyp a) (move:xs) =
     let
         noda = case move of
-            (al, Add) ->
-                let
-                    hypp = Hyp al a
-                    likeax = deductionRemake nodeMe xs
-                    res = MP (getOnlyRight hyp) hypp likeax a
-                in
-                    res
- 
-                -- (Hyp hyp a)
+            (al, Add) -> nodeAdder nodeMe al xs
             (alpha, Del) ->
                 if alpha == hyp
                     then
@@ -566,13 +488,7 @@ deductionRemake nodeMe@(MP me n1 n2 a) (move : xs)  =
         nj' = deductionRemake n1 (move : xs)
         nk' = deductionRemake n2 (move : xs)
         newThisNode = case move of
-            (al, Add) -> 
-                let
-                    hypp = Hyp al a
-                    likeax = deductionRemake nodeMe xs
-                    res = MP (getOnlyRight me) hypp likeax a
-                in
-                    res
+            (al, Add) -> nodeAdder nodeMe al xs
             (al, Del) ->
                 let
                     bj = nodeGetTerm n1
