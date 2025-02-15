@@ -11,8 +11,6 @@ import           GHC.Generics        (Generic)
 import           Data.Either         (rights)
 import           Data.List
 import           Data.Maybe          (isJust)
--- main :: IO ()
--- main = putStrLn "Hello, Haskell!"
 
 main :: IO ()
 main = do
@@ -392,24 +390,10 @@ getTree acc x=
         ded = getDed x acc
         modus = getModusPonens acc x
         noda = case (ax, hyp, ded, modus) of
-            (Just idx, _,  _, _) ->
-                Ax term idx ()
-                -- (" [Ax. sch. " ++ show idx ++ "]" ,True)
-
-            (_, Just i, _, _) ->
-                Hyp term ()
-                -- (" [Hyp. " ++ show (i+1) ++ "]", True)
-
-            (_, _, Just i, _) ->
-                let
-                    ii = n-i-1
-                in
-                Ded term (accGetNode $ acc !! ii) ()
-                -- (" [Ded. " ++ show i ++ "]", True)
-
-            (_, _,  _, Just (i, j)) ->
-                MP term (accGetNode $ acc !! i) (accGetNode $ acc !! j) ()
-                -- (" [M.P. " ++ show (n-j-1) ++ ", " ++ show (n-i-1) ++ "]", True)
+            (Just idx, _,  _, _) -> Ax term idx ()
+            (_, Just i, _, _) -> Hyp term ()
+            (_, _, Just i, _) -> Ded term (accGetNode $ acc !! (n-i-1)) ()
+            (_, _,  _, Just (i, j)) -> MP term (accGetNode $ acc !! i) (accGetNode $ acc !! j) ()
             _ -> error "Incorrect"
     in (x, leftSortDed x, noda) : acc
 
@@ -432,25 +416,22 @@ getOnlyRight (a :-> b) = b
 getOnlyRight _  = error "THIS IS VERY BAD"
 
 
-
 nodeAdder :: Node a -> Term -> Moves -> Node a
 nodeAdder node al xs = let
-        a = nodeGetA node
-        hypp = Hyp al a
-        likeax = deductionRemake node xs
-        noda = MP (getOnlyRight (nodeGetTerm node)) hypp likeax a
+    a = nodeGetA node
+    hypp = Hyp al a
+    likeax = deductionRemake node xs
+    noda = MP (getOnlyRight (nodeGetTerm node)) hypp likeax a
     in deductionRemake noda xs
 
 deductionRemake :: Node a -> Moves -> Node a
 
 deductionRemake (Ax ax idx a) [] = Ax ax idx a
-deductionRemake nodeMe@(Ax ax idx a) (move:xs) =
-    let
-        noda = case move of
-            (al, Add) -> nodeAdder nodeMe al xs
-            (alpha, Del) -> MP (alpha :-> ax) (Ax ax idx a) (Ax (ax :-> alpha :-> ax) 1 a) a
-    in
-    deductionRemake noda xs
+deductionRemake nodeMe@(Ax ax idx a) (move:xs) = let
+    noda = case move of
+        (al, Add) -> nodeAdder nodeMe al xs
+        (alpha, Del) -> MP (alpha :-> ax) (Ax ax idx a) (Ax (ax :-> alpha :-> ax) 1 a) a
+    in deductionRemake noda xs
 
 
 deductionRemake (Hyp hyp a) [] = Hyp hyp a
@@ -459,18 +440,16 @@ deductionRemake nodeMe@(Hyp hyp a) (move:xs) =
         noda = case move of
             (al, Add) -> nodeAdder nodeMe al xs
             (alpha, Del) ->
-                if alpha == hyp
-                    then
-                        let
-                            n02 = Ax (hyp :-> hyp :-> hyp) 1 a
-                            n04 = Ax ((hyp :-> hyp :-> hyp) :-> (hyp :-> (hyp :-> hyp) :-> hyp) :-> (hyp :-> hyp)) 2 a
-                            n06 = MP ((hyp :-> (hyp :-> hyp) :-> hyp) :-> (hyp :-> hyp)) n02 n04 a
-                            n08 = Ax (hyp :-> (hyp :-> hyp) :-> hyp) 1 a
-                            n1 = MP (hyp :-> hyp) n08 n06 a
-                        in n1
-                    else
-                        MP (alpha :-> hyp) (Hyp hyp a) (Ax (hyp :-> alpha :-> hyp) 1 a) a
-
+                if alpha == hyp then
+                    let
+                        n02 = Ax (hyp :-> hyp :-> hyp) 1 a
+                        n04 = Ax ((hyp :-> hyp :-> hyp) :-> (hyp :-> (hyp :-> hyp) :-> hyp) :-> (hyp :-> hyp)) 2 a
+                        n06 = MP ((hyp :-> (hyp :-> hyp) :-> hyp) :-> (hyp :-> hyp)) n02 n04 a
+                        n08 = Ax (hyp :-> (hyp :-> hyp) :-> hyp) 1 a
+                        n1 = MP (hyp :-> hyp) n08 n06 a
+                    in n1
+                else
+                    MP (alpha :-> hyp) (Hyp hyp a) (Ax (hyp :-> alpha :-> hyp) 1 a) a
     in
     deductionRemake noda xs
 
