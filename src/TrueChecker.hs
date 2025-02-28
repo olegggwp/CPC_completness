@@ -5,7 +5,7 @@ import Data.Map (Map, lookup, fromList)
 import Term
 import Data.Set
 import qualified Data.Map
-
+import ProofThings
 
 searchForFalse :: Term -> Maybe (Map String Bool)
 searchForFalse term = let
@@ -14,9 +14,9 @@ searchForFalse term = let
     where
         searchForFalse' :: [Map String Bool] -> Term -> Maybe (Map String Bool)
         searchForFalse' [] _ = Nothing
-        searchForFalse' (estimap:estimaps) term = 
-            if not $ evalterm estimap term 
-            then Just estimap 
+        searchForFalse' (estimap:estimaps) term =
+            if not $ evalterm estimap term
+            then Just estimap
             else searchForFalse' estimaps term
 
 
@@ -37,4 +37,22 @@ getEstimaps names = Data.Map.fromList <$> getEstimaps' names
         getEstimaps' :: [String] -> [[(String, Bool)]]
         getEstimaps' [] = [[]]
         getEstimaps' (v:vs) = [ (v, b) :  rest | b <- [True, False], rest <- getEstimaps' vs]
+
+printSolution :: Term -> IO ()
+printSolution term = do
+    let estimaps = getEstimaps $ getVarsUniq term
+    let proofs = (`getProof` term) <$> estimaps
+    mapM_ (`printNode` 0) proofs
+    -- let trees = getTree term
+    print term
+    putStrLn ""
+
+
+printNode :: Node -> Int -> IO ()
+printNode node lvl = do
+    let sonNodes = getSonNodes node
+    mapM_ (\x -> printNode x (lvl+1)) sonNodes
+    let gh = nodeGetTRow node
+    let typo = nodeGetTypo node
+    putStrLn $ show gh ++ " [" ++ show typo ++ "]"
 
