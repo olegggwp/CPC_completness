@@ -1,6 +1,6 @@
 # HC=/opt/ghc/7.10.3/bin/ghc
 HC=ghc
-SOURCES=src/Main.hs
+SOURCES=src/DMain.hs src/Term.hs src/PrintUtils.hs src/Parser.hs src/RTL.hs src/TrueChecker.hs
 PACKAGE=hw0.zip
 OUT=parser
 
@@ -21,9 +21,15 @@ pack:
 	zip $(PACKAGE) -r Makefile src
 
 test: $(OUT)
-	./$(OUT) < testB1
-	./$(OUT) < testB2
-	./$(OUT) < testB3
+	./$(OUT) < Dtest1
+	./$(OUT) < Dtest2
+	./$(OUT) < Dtest3
+	# ./$(OUT) < testB1
+	# ./$(OUT) < testB2
+	# ./$(OUT) < testB3
+	# ./$(OUT) < test4
 	# ./$(OUT) < test1
+	# ./$(OUT) < test5
+	# ./$(OUT) < test6
 	# ./$(OUT) < test2
 	# ./$(OUT) < parsetest

@@ -1,6 +1,8 @@
+-- {-# LANGUAGE Strict #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE Strict #-}
-
+{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 module Main where
 import           Control.Applicative ((<|>))
 import           Text.Parsec         hiding ((<|>))
@@ -11,6 +13,7 @@ import           GHC.Generics        (Generic)
 import           Data.Either         (rights)
 import           Data.List
 import           Data.Maybe          (isJust)
+import Debug.Trace
 
 main :: IO ()
 main = do
@@ -20,44 +23,86 @@ main = do
     let parsed' = rights parsed
     let solutions = firstSol parsed'
     let firstTree = accGetNode $ head solutions
-    -- putStrLn $ prettyPrintNode firstTree
-    let rededTree = deductionRemake firstTree []
+    -- let firstTree = (Ax (V "A" :-> V "B" :-> (V "A" `BAnd` V "B")) 11 ())
+    let firstTree' = toBool firstTree
+    -- let rededTree = deductionRemake firstTree' [(V "A", Add), (V "B", Add)]
+
+    let rededTree = deductionRemake firstTree' []
     -- putStrLn $ prettyPrintNode rededTree
 
-    putStrLn $ printRow $ last parsed'
+    -- putStrLn $ printRow $ last parsed'
 
-    putStrLn $ printNode rededTree
+    putStrLn $ printRow $ getRow $ head solutions
+
+    let was = map (rowGetTerm . getRow) solutions
+
+
+    putStrLn $ printNode rededTree was
+
+-- debug:
+    -- putStrLn $ prettyPrintNode firstTree'
+    -- putStrLn $ prettyPrintNode rededTree
+
+
+
+
+toBool :: Node a -> Node Bool
+toBool (Ax term idx _) = Ax term idx True
+toBool (Hyp term _) = Hyp term True
+toBool (MP term n1 n2 _) = MP term (toBool n1) (toBool n2) True
+toBool (Ded term n _) = Ded term (toBool n) True
 
 
 printRow :: Row -> String
 printRow (ctx, term) = intercalate "," (map show ctx) ++ "|-" ++ show term
 
 
-prettyPrintNode :: Node a -> String
+prettyPrintNode :: Show a => Node a -> String
 prettyPrintNode = go 0
     where
-        go indent (Ax term idx _) = replicate indent '\t' ++ "Ax " ++ show term ++ " " ++ show idx ++ "\n"
-        go indent (Hyp term _) = replicate indent '\t' ++ "Hyp " ++ show term ++ "\n"
-        go indent (MP term n1 n2 a) =
-                replicate indent '\t' ++ "MP " ++ show term ++ "\n" ++
-                go (indent + 1) n1 ++
-                go (indent + 1) n2
-        go indent (Ded term n a) =
-                replicate indent '\t' ++ "Ded " ++ show term ++ " moves: " ++ show (getDedMoves (Ded term n a)) ++ "\n" ++
-                go (indent + 1) n
+        go indent node = indentStr indent ++ nodeStr node ++ "\n" ++ childrenStr indent node
 
-    -- mapM_ (putStrLn . getStr) (reverse solutions)
-    -- print "OK"
-    -- mapM_ print parsed
+        nodeStr node = nodeTypeStr node ++ show (nodeGetTerm node) ++ showA (nodeGetA node)
 
+        nodeTypeStr (Ax _ _ _) = "Ax "
+        nodeTypeStr (Hyp _ _) = "Hyp "
+        nodeTypeStr (MP _ _ _ _) = "MP "
+        nodeTypeStr (Ded term n a) = "Ded " ++ " moves: " ++ show (getDedMoves (Ded term n a)) ++ ";  "
 
-printNode :: Node a -> String
-printNode (Ax term idx _) = show term ++ "\n"
-printNode (Hyp term _) = show term ++ "\n"
-printNode (MP term n1 n2 a) = printNode n1 ++ printNode n2 ++ show term ++ "\n"
-printNode (Ded term n a) = printNode n ++ show term ++ "\n"
+        childrenStr indent (MP _ n1 n2 _) = go (indent + 1) n1 ++ go (indent + 1) n2
+        childrenStr indent (Ded _ n _) = go (indent + 1) n
+        childrenStr _ _ = ""
+
+        indentStr n = replicate n '\t'
+
+        showA a = ""
+        -- showA a = " [a : " ++ show a ++ "]"
 
 
+printNode :: Node Bool -> [Term] -> String
+printNode node was = let
+    body = case node of
+        Ax term _ _    -> show term
+        Hyp term _     -> show term
+        MP _ n1 n2 _   -> printNode n1 was ++ printNode n2 was ++ show (nodeGetTerm node)
+        Ded _ n _      -> printNode n was ++ show (nodeGetTerm node)
+    in body ++ printAboutOrig node was
+
+
+lolBool :: Bool -> String
+lolBool a = if a then " [from Original proof]" else ""
+
+searchForTerm :: Term -> [Term] -> Bool
+searchForTerm = elem
+
+isFromOrig :: Node Bool -> [Term] -> Bool
+isFromOrig node was =
+    searchForTerm (nodeGetTerm node) was
+    -- nodeGetA node || searchForTerm (nodeGetTerm node) was
+
+printAboutOrig :: Node Bool -> [Term] -> String
+printAboutOrig node was =
+    if isFromOrig node was then " [from Original proof]\n" else "\n"
 
 data Term =
       V String
@@ -381,20 +426,20 @@ accGetNode :: Damn2 -> Node ()
 accGetNode (_, _, x) = x
 
 getTree :: [Damn2] -> Row -> [Damn2]
-getTree acc x=
+getTree acc x =
     let (ctx, term) = x
         n = 1 + length acc
-        me = "[" ++ show n ++ "] " ++ showCtx ctx ++ "|-" ++ show term
+        -- me = "[" ++ show n ++ "] " ++ showCtx ctx ++ "|-" ++ show term
         ax = getAxiom term
         hyp = getHyp x
         ded = getDed x acc
         modus = getModusPonens acc x
-        noda = case (ax, hyp, ded, modus) of
+        noda = case (ax, hyp, modus, ded) of
             (Just idx, _,  _, _) -> Ax term idx ()
             (_, Just i, _, _) -> Hyp term ()
-            (_, _, Just i, _) -> Ded term (accGetNode $ acc !! (n-i-1)) ()
-            (_, _,  _, Just (i, j)) -> MP term (accGetNode $ acc !! i) (accGetNode $ acc !! j) ()
-            _ -> error "Incorrect"
+            (_, _,  Just (i, j), _) -> MP term (accGetNode $ acc !! j) (accGetNode $ acc !! i) ()
+            (_, _, _, Just i) -> Ded term (accGetNode $ acc !! (n-i-1)) ()
+            _ -> error $ "Incorrect" ++ show x
     in (x, leftSortDed x, noda) : acc
 
 
@@ -409,47 +454,56 @@ data Todo = Add | Del
 type Moves = [(Term, Todo)]
 
 
+nodeSetFalse :: Node a -> Node Bool
+nodeSetFalse (Ax term idx _) = Ax term idx False
+nodeSetFalse (Hyp term _) = Hyp term False
+nodeSetFalse (MP term n1 n2 _) = MP term (nodeSetFalse n1) (nodeSetFalse n2) False
+nodeSetFalse (Ded term n _) = Ded term (nodeSetFalse n) False
 
+
+nodeSetTrue :: Node Bool -> Node Bool
+nodeSetTrue (Ax term idx _) = Ax term idx True
+nodeSetTrue (Hyp term _) = Hyp term True
+nodeSetTrue (MP term n1 n2 _) = MP term n1 n2 True
+nodeSetTrue (Ded term n _) = Ded term n True
 
 getOnlyRight :: Term -> Term
 getOnlyRight (a :-> b) = b
-getOnlyRight _  = error "THIS IS VERY BAD"
+getOnlyRight x  = error $ "THIS IS VERY BAD: " ++ show x
 
 
-nodeAdder :: Node a -> Term -> Moves -> Node a
-nodeAdder node al xs = let
-    a = nodeGetA node
-    hypp = Hyp al a
-    likeax = deductionRemake node xs
-    noda = MP (getOnlyRight (nodeGetTerm node)) hypp likeax a
-    in deductionRemake noda xs
+nodeAdder :: Node Bool -> Term -> Node Bool
+nodeAdder node al = let
+    -- a = nodeGetA node
+    hypp = Hyp al False
+    -- likeax = node
+    in MP (getOnlyRight (nodeGetTerm node)) hypp node False
 
-deductionRemake :: Node a -> Moves -> Node a
-
-deductionRemake (Ax ax idx a) [] = Ax ax idx a
+deductionRemake :: Node Bool -> Moves -> Node Bool
+deductionRemake node@(Ax ax idx a) [] = node
 deductionRemake nodeMe@(Ax ax idx a) (move:xs) = let
     noda = case move of
-        (al, Add) -> nodeAdder nodeMe al xs
-        (alpha, Del) -> MP (alpha :-> ax) (Ax ax idx a) (Ax (ax :-> alpha :-> ax) 1 a) a
+        (al, Add) -> nodeAdder nodeMe al
+        (alpha, Del) -> MP (alpha :-> ax) (Ax ax idx a) (Ax (ax :-> alpha :-> ax) 1 False) False
     in deductionRemake noda xs
 
 
-deductionRemake (Hyp hyp a) [] = Hyp hyp a
+deductionRemake node@(Hyp hyp a) [] = node
 deductionRemake nodeMe@(Hyp hyp a) (move:xs) =
     let
         noda = case move of
-            (al, Add) -> nodeAdder nodeMe al xs
+            (al, Add) -> nodeAdder nodeMe al
             (alpha, Del) ->
                 if alpha == hyp then
                     let
-                        n02 = Ax (hyp :-> hyp :-> hyp) 1 a
-                        n04 = Ax ((hyp :-> hyp :-> hyp) :-> (hyp :-> (hyp :-> hyp) :-> hyp) :-> (hyp :-> hyp)) 2 a
-                        n06 = MP ((hyp :-> (hyp :-> hyp) :-> hyp) :-> (hyp :-> hyp)) n02 n04 a
-                        n08 = Ax (hyp :-> (hyp :-> hyp) :-> hyp) 1 a
+                        n02 = Ax (hyp :-> hyp :-> hyp) 1 False
+                        n04 = Ax ((hyp :-> hyp :-> hyp) :-> (hyp :-> (hyp :-> hyp) :-> hyp) :-> (hyp :-> hyp)) 2 False
+                        n06 = MP ((hyp :-> (hyp :-> hyp) :-> hyp) :-> (hyp :-> hyp)) n02 n04 False
+                        n08 = Ax (hyp :-> (hyp :-> hyp) :-> hyp) 1 False
                         n1 = MP (hyp :-> hyp) n08 n06 a
                     in n1
                 else
-                    MP (alpha :-> hyp) (Hyp hyp a) (Ax (hyp :-> alpha :-> hyp) 1 a) a
+                    MP (alpha :-> hyp) (Hyp hyp a) (Ax (hyp :-> alpha :-> hyp) 1 False) False
     in
     deductionRemake noda xs
 
@@ -464,17 +518,18 @@ deductionRemake (MP term n1 n2 a) [] =
 
 deductionRemake nodeMe@(MP me n1 n2 a) (move : xs)  =
     let
-        nj' = deductionRemake n1 (move : xs)
-        nk' = deductionRemake n2 (move : xs)
         newThisNode = case move of
-            (al, Add) -> nodeAdder nodeMe al xs
+            (al, Add) -> nodeAdder nodeMe al
             (al, Del) ->
                 let
+                    nj' = deductionRemake n1 (move : [])
+                    nk' = deductionRemake n2 (move : [])
                     bj = nodeGetTerm n1
+                    _ = trace ("BJ is : " ++ (show bj) ++ " ===== \n" ) ()
                     bn1 = me
-                    n03 = Ax ((al :-> bj) :-> (al :-> bj :-> bn1) :-> (al :-> bn1)) 2 a
-                    n06 = MP ((al :-> bj :-> bn1) :-> (al :-> bn1)) nj' n03 a
-                    nfinal = MP (al :-> bn1) nk' n06 a
+                    n03 = Ax ((al :-> bj) :-> (al :-> bj :-> bn1) :-> (al :-> bn1)) 2 False
+                    n06 = MP ((al :-> bj :-> bn1) :-> (al :-> bn1)) nj' n03 False
+                    nfinal = MP (al :-> bn1) nk' n06 False
                 in
                     nfinal
     in
@@ -488,10 +543,18 @@ deductionRemake (Ded me nodeFrom a) moves =
         to = me
         fromMoves = map (, Add) $ getTermMoves from
         toMoves = map (, Del) $ getTermMoves to
-        newMoves = mergeMoves moves $ reverse $ mergeMoves fromMoves toMoves
-    in
-        deductionRemake nodeFrom newMoves
+        _ = trace ("!!!FROM" ++ (show fromMoves) ++ " ===== \n") ()
+        _ = trace ("!!!TO" ++ (show toMoves) ++ " ===== \n") ()
+        -- _ = trace ("!!!MERGED" ++ (show (mergeMoves fromMoves toMoves)) ++ " ===== \n") ()
+        m1 = mergeMoves (reverse toMoves) (reverse fromMoves)
 
+        newMoves = mergeMoves (moves) $ reverse m1
+        -- newMoves = mergeMoves (reverse moves) $ reverse m1
+        _ = trace ("RED" ++ (show newMoves) ++ " ===== \n") ()
+        lol = deductionRemake nodeFrom newMoves
+        lol2 = nodeSetTrue lol
+    in
+        lol2
 
 getTermMoves :: Term -> [Term]
 getTermMoves (a :-> b) = a : getTermMoves b
@@ -502,10 +565,14 @@ getDedMoves (Ded me nodeFrom a) =
     let
         from = nodeGetTerm nodeFrom
         to = me
-        fromMoves = map (, Add) $ getTermMoves from
+        fromMoves =map (, Add) $ getTermMoves from
         toMoves = map (, Del) $ getTermMoves to
+        _ = trace ("&&&& FROM" ++ (show fromMoves) ++ " ===== \n") ()
+        _ = trace ("&&&& TO" ++ (show toMoves) ++ " ===== \n") ()
+
     in
-        mergeMoves fromMoves toMoves
+        -- fromMoves
+        mergeMoves (reverse toMoves) (reverse fromMoves)
 getDedMoves _ = []
 
 mergeMoves :: Moves -> Moves -> Moves
