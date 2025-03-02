@@ -13,7 +13,7 @@ data Term =
     | BAnd Term Term
     | BOr Term Term
     | BNOT
-    deriving (Eq, Generic)
+    deriving (Eq, Generic, Ord)
 infixr 2 :->
 infixl 3 `BOr`
 infixl 4 `BAnd`
@@ -27,6 +27,9 @@ instance Show Term where
 
 
 type Row = ([Term], Term)
+
+tnot :: Term -> Term
+tnot a = a :-> BNOT
 
 
 -- data Node x where

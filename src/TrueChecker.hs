@@ -6,6 +6,8 @@ import Term
 import Data.Set
 import qualified Data.Map
 import ProofThings
+import EvalTerm
+import PrintUtils (printNode)
 
 searchForFalse :: Term -> Maybe (Map String Bool)
 searchForFalse term = let
@@ -20,15 +22,7 @@ searchForFalse term = let
             else searchForFalse' estimaps term
 
 
-getVarsUniq :: Term -> [String]
-getVarsUniq = toList . getVars
-    where
-        getVars :: Term -> Set String
-        getVars (V a) = singleton a
-        getVars (a :-> b) = getVars a `union` getVars b
-        getVars (a `BAnd` b) = getVars a `union` getVars b
-        getVars (a `BOr` b) = getVars a `union` getVars b
-        getVars BNOT = empty
+
 
 -- все возможные оценки переменных
 getEstimaps :: [String] -> [Map String Bool]
@@ -42,17 +36,10 @@ printSolution :: Term -> IO ()
 printSolution term = do
     let estimaps = getEstimaps $ getVarsUniq term
     let proofs = (`getProof` term) <$> estimaps
-    mapM_ (`printNode` 0) proofs
+    mapM_ (\x -> (x `printNode` 0) *> putStrLn "") proofs
+
+
     -- let trees = getTree term
-    print term
-    putStrLn ""
-
-
-printNode :: Node -> Int -> IO ()
-printNode node lvl = do
-    let sonNodes = getSonNodes node
-    mapM_ (\x -> printNode x (lvl+1)) sonNodes
-    let gh = nodeGetTRow node
-    let typo = nodeGetTypo node
-    putStrLn $ show gh ++ " [" ++ show typo ++ "]"
+    -- print term
+    putStrLn "END"
 

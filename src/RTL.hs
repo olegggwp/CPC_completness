@@ -24,6 +24,9 @@ data Node =
   | Eseq TRow Node Node Node
   | Enotnot TRow Node
 
+nodeGetTermT :: Node -> Term
+nodeGetTermT node = let (_ :- t) = nodeGetTRow node in t
+
 nodeGetTRow :: Node -> TRow
 nodeGetTRow (InContext trow) = trow
 nodeGetTRow (Eto trow _ _) = trow
@@ -62,7 +65,7 @@ getSonNodes (Enotnot _ a) = [a]
 
 
 addToContext :: [Term] -> Node -> Node
-addToContext gi (InContext (g :- t)) = InContext ((g ++ gi) :- t)  
+addToContext gi (InContext (g :- t)) = InContext ((g ++ gi) :- t)
 addToContext gi (Eto (g :- t) a b) = Eto ((g ++ gi) :- t) (addToContext gi a) (addToContext gi b)
 addToContext gi (Ito (g :- t) a) = Ito ((g ++ gi) :- t) (addToContext gi a)
 addToContext gi (Iand (g :- t) a b) = Iand ((g ++ gi) :- t) (addToContext gi a) (addToContext gi b)
@@ -72,6 +75,33 @@ addToContext gi (Ilor (g :- t) a) = Ilor ((g ++ gi) :- t) (addToContext gi a)
 addToContext gi (Ilol (g :- t) a) = Ilol ((g ++ gi) :- t) (addToContext gi a)
 addToContext gi (Eseq (g :- t) a b c) = Eseq ((g ++ gi) :- t) (addToContext gi a) (addToContext gi b) (addToContext gi c)
 addToContext gi (Enotnot (g :- t) a) = Enotnot ((g ++ gi) :- t) (addToContext gi a)
+
+
+insertInTerm :: Term -> Term -> Term -> Term
+insertInTerm a b (V x)
+  | x == "A" = a
+  | x == "B" = b
+  | otherwise = V x
+
+insertInTerm a b (x :-> y) = insertInTerm a b x :-> insertInTerm a b y
+insertInTerm a b (x `BAnd` y) = insertInTerm a b x `BAnd` insertInTerm a b y
+insertInTerm a b (x `BOr` y) = insertInTerm a b x `BOr` insertInTerm a b y
+insertInTerm _ _ BNOT = BNOT
+
+insertInTRow :: Term -> Term -> TRow -> TRow
+insertInTRow a b (g :- t) = map (insertInTerm a b) g :- insertInTerm a b t
+
+insertInProof :: Term -> Term -> Node -> Node
+insertInProof a b (InContext trow) = InContext (insertInTRow a b trow)
+insertInProof a b (Eto trow a' b') = Eto (insertInTRow a b trow) (insertInProof a b a') (insertInProof a b b')
+insertInProof a b (Ito trow a') = Ito (insertInTRow a b trow) (insertInProof a b a')
+insertInProof a b (Iand trow a' b') = Iand (insertInTRow a b trow) (insertInProof a b a') (insertInProof a b b')
+insertInProof a b (Eland trow a') = Eland (insertInTRow a b trow) (insertInProof a b a')
+insertInProof a b (Erand trow a') = Erand (insertInTRow a b trow) (insertInProof a b a')
+insertInProof a b (Ilor trow a') = Ilor (insertInTRow a b trow) (insertInProof a b a')
+insertInProof a b (Ilol trow a') = Ilol (insertInTRow a b trow) (insertInProof a b a')
+insertInProof a b (Eseq trow a' b' c') = Eseq (insertInTRow a b trow) (insertInProof a b a') (insertInProof a b b') (insertInProof a b c')
+insertInProof a b (Enotnot trow a') = Enotnot (insertInTRow a b trow) (insertInProof a b a')
 
 
 
