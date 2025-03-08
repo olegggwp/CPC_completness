@@ -21,8 +21,8 @@ getDedMoves (Ded me nodeFrom a) =
     let
         from = nodeGetTerm nodeFrom
         to = me
-        fromMoves =map (, Add) $ getTermMoves from
-        toMoves = map (, Del) $ getTermMoves to
+        fromMoves = (, Add) <$> getTermMoves from
+        toMoves =  (, Del) <$> getTermMoves to
         merged = mergeMoves (reverse toMoves) (reverse fromMoves)
     in
         merged
@@ -46,7 +46,7 @@ mergeMoves (x:xs) (y:ys) =
 
 reform :: NodeX [Term] -> Node
 
-reform (Hyp me ctx) = InContext $ ctx :- me
+reform (Hyp me ctx) = thowOnInvalidstr "Hyp " $ InContext $ ctx :- me
 
 reform (Ax me axNum ctx) = let
     xx = case axNum of
@@ -61,32 +61,49 @@ reform (Ax me axNum ctx) = let
             9 -> isToSc9 $ fromMaybe (error "reform-9") (isa9 me)
             10 -> isToSc10 $ fromMaybe (error "reform-10") (isa10 me)
             _ -> error "reform: not an ax"
-    in xx ctx
+    in thowOnInvalidstr ("AXIOMS " ++ show axNum  ++ "   -->  " ) $ xx ctx
 
-reform (MP me nodeFrom1 nodeFrom2 ctx) = Eto (ctx :- me) (reform nodeFrom1) (reform nodeFrom2)
+reform (MP me nodeFrom1 nodeFrom2 ctx) = 
+    -- thowOnInvalidstr ("MP " ++ show me) $
+  Eto (ctx :- me) 
+  ( reform nodeFrom2) 
+  ( reform nodeFrom1)
+--   (thowOnInvalidstr ("MP-1->>> " ++ show me) $ reform nodeFrom2) 
+--   (thowOnInvalidstr ("MP-2->>> " ++ show me) $ reform nodeFrom1)
 
 
 
 reform node@(Ded me nodeFrom ctx) = let  
     yy = getDedMoves node
     (t, dir) = if length yy == 1 then head yy else error "reform: too many moves"
-    s1 = InContext $ (t : ctx) :- t
-    s2 = addToContext [t] $ reform nodeFrom
-    s3 = Eto (ctx :- me) s2 s1
     in
     case dir of
         Add -> -- добваить в контекст т е перенести влево
-            s3
+            thowOnInvalidstr "DED afta add " $
+            moveLeft $ reform nodeFrom
         Del ->  -- вправо
-            Ito (ctx :- me) $ reform nodeFrom
+            -- thowOnInvalidstr "Ded Del " $ 
+            Ito (ctx :- me) $
+             reform nodeFrom
 
 moveRight :: Int -> Node -> Node
 moveRight 0 node = node
-moveRight x node = let
+moveRight x node = thowOnInvalidstr "MOVERIGHT " $ let
     (g :- t) = nodeGetTRow node
     in case g of 
         [] -> error "moveRight: no moves"
         (a:as) ->  moveRight (x - 1) $ Ito (as :- (a :-> t)) node
+
+
+
+moveLeft :: Node -> Node
+moveLeft node = thowOnInvalidstr "MOVELEFT " $ let
+    (g :- t) = nodeGetTRow node
+    (a, b) = getAB t
+    fromAdded = addToContext [a] node
+    axx = InContext $ (a : g) :- a
+    res = Eto ((a : g) :- b) fromAdded axx
+    in res
 
 isToSc1 :: (Term, Term) -> [Term] -> Node
 isToSc1 (a, b) ctx = sc1 ctx a b
@@ -98,7 +115,7 @@ isToSc2 (a, b, c) ctx = let
     s2 = InContext $ sg :- (a :-> b)
     s3 = InContext $ sg :- (a :-> b :-> c)
     s4 = Eto (sg :- (b :-> c)) s3 s1
-    s5 = Eto (sg :- b) s4 s1
+    s5 = Eto (sg :- b) s2 s1    
     s6 = Eto (sg :- c) s4 s5
     in 
     moveRight 3 s6
@@ -128,8 +145,12 @@ isToSc7 (a, b) ctx = memeGenerator ctx b (a `BOr` b) Ilol
 isToSc8 :: (Term, Term, Term) -> [Term] -> Node
 isToSc8 (a, b, c) ctx = let
     sg = (a `BOr` b) : (a :-> c) : (b :-> c) : ctx
-    s1 = Ito ((a : sg) :- c) $ InContext $ sg :- (a :-> c)
-    s2 = Ito ((b : sg) :- c) $ InContext $ sg :- (b :-> c)
+    -- s1 = Ito ((a : sg) :- c) $ 
+    s1 = moveLeft $ 
+        InContext $ sg :- (a :-> c)
+    -- s2 = Ito ((b : sg) :- c) $ 
+    s2 = moveLeft $ 
+        InContext $ sg :- (b :-> c)
     s3 = InContext $ sg :- (a `BOr` b)
     in
     Ito (ctx :- ((b :-> c) :-> (a :-> c) :-> ((a `BOr` b) :-> c))) $
@@ -146,7 +167,7 @@ isToSc10 a ctx = sc10 ctx a
 
 memeGenerator :: [Term] -> Term -> Term -> (TRow  -> Node  -> Node) -> Node
 memeGenerator ctx a b rule =
-    Ito (ctx :- (b :-> a)) $
+    Ito (ctx :- (a :-> b)) $
     rule ((a : ctx) :- b) $
     InContext $ (a : ctx) :- a
 
@@ -173,7 +194,9 @@ sc10 g a =
     nna = tnot (tnot a)
     na = tnot a
     s1 = InContext $ ( nna : g) :- nna
-    s2 = Ito  (( na : nna : g) :- BNOT) s1
+    -- s2 = Ito  (( na : nna : g) :- BNOT) s1
+    -- s2 = moveRight 1 s1
+    s2 = moveLeft s1
     s3 = Enotnot (( nna : g) :- a) s2
     in
-    s3
+    Ito ((g) :- (nna :-> a)) $ s3

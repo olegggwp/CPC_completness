@@ -3,8 +3,6 @@ import Term
 
 import           Control.Applicative ((<|>))
 import           Text.Parsec         hiding ((<|>))
-import           Text.Parsec.Expr
-import           Text.Parsec.String  (Parser)
 import           Control.Monad       (void)
 import           GHC.Generics        (Generic)
 import           Data.Either         (rights)
@@ -12,6 +10,7 @@ import           Data.List
 import           Data.Maybe          (isJust)
 import Debug.Trace
 import RTL
+import Data.Map (Map, toList)
 
 
 printRow :: Row -> String
@@ -43,11 +42,20 @@ prettyPrintNode = go 0
         indentStr n = replicate n '\t'
 
 
-printNode :: Node -> Int -> IO ()
-printNode node lvl = do
+printNode :: Int -> Node  -> IO ()
+printNode lvl node = do
     let sonNodes = getSonNodes node
-    mapM_ (\x -> printNode x (lvl+1)) sonNodes
+    mapM_ (printNode (lvl+1)) sonNodes
     let gh = nodeGetTRow node
     let typo = nodeGetTypo node
-    putStrLn $ "[" ++ show lvl ++ "] " ++ printTRow gh ++ " [" ++ show typo ++ "]"
+    -- putStrLn $  " [" ++ typo ++ "]"
+    putStrLn $ "[" ++ show lvl ++ "] " ++ printTRow gh ++ " [" ++ typo ++ "]"
+    -- putStrLn $ (replicate lvl '\t') ++ "[" ++ show lvl ++ "] " ++ printTRow gh ++ " [" ++ typo ++ "]"
 
+
+
+printRef :: Map String Bool ->  String
+printRef m = intercalate ", " $ map (\(a, b) -> a ++ ":=" ++ strb b) $ Data.Map.toList m
+    where 
+        strb False = "F"
+        strb True = "T"

@@ -1,13 +1,15 @@
 module TrueChecker where
 import RTL
 
-import Data.Map (Map, lookup, fromList)
+import Data.Map (Map, fromList)
 import Term
-import Data.Set
+-- import Data.Set
 import qualified Data.Map
 import ProofThings
 import EvalTerm
 import PrintUtils (printNode)
+import Lemms (sekLemm)
+import Data.List (find)
 
 searchForFalse :: Term -> Maybe (Map String Bool)
 searchForFalse term = let
@@ -34,12 +36,64 @@ getEstimaps names = Data.Map.fromList <$> getEstimaps' names
 
 printSolution :: Term -> IO ()
 printSolution term = do
-    let estimaps = getEstimaps $ getVarsUniq term
-    let proofs = (`getProof` term) <$> estimaps
-    mapM_ (\x -> (x `printNode` 0) *> putStrLn "") proofs
+    let noda = thowOnInvalidstr "FINAL ERROR" $ optimizeMe $ mm (getVarsUniq term) []
+    printNode 0 noda
+    
+    -- printNode 0 noda
+    -- if xx isNothing then printNode 0 noda else putStrLn "ERROR" 
+    -- printNode 0 noda 
+    -- let estimaps = getEstimaps $ getVarsUniq term
+    -- let proofs = optimizeMe . (`getProof` term) <$> estimaps
+    -- mapM_ (\x -> (x `printNode` 0) *> putStrLn "") proofs
 
+    where
+        mm :: [String] -> [(String, Bool)] -> Node
+        mm [] estimap = getProof (Data.Map.fromList estimap) term
+        mm (a : xs) estimap = let
+            va = V a
+            n1 =thowOnInvalidstr "n1" $ mm xs $ (a, True) : estimap
+            n2 =thowOnInvalidstr "n2" $ mm xs $ (a, False) : estimap
+            gi = gadded <$> estimap
+            lm = thowOnInvalidstr "SEKV " $ addToContext gi $ sekLemm va term
+            mp1 = thowOnInvalidstr "mp1 " $ Eto (gi :- (((tnot va) :-> term) :-> term)) lm
+                $ Ito (gi :- (va :-> term))
+                $ n1
+            mp2 = thowOnInvalidstr "mp2" $ Eto (gi :- term) mp1
+                $ Ito (gi :- ((tnot va) :-> term))
+                $ n2
+            in mp2
+
+        gadded :: (String, Bool) -> Term
+        gadded (x, True) = V x
+        gadded (x, False) = tnot $ V x
+
+    -- putStrLn "END"
 
     -- let trees = getTree term
     -- print term
-    putStrLn "END"
+
+
+optimizeMe :: Node -> Node
+optimizeMe noda = let
+    (g :- term) = nodeGetTRow noda
+    optimizedG = find (== term) g
+    opt = case optimizedG of
+        Just _ -> InContext (g :- term)
+        Nothing -> godeep noda
+    in opt
+    where
+        godeep :: Node -> Node
+        godeep (InContext trow) = InContext trow
+        godeep (Eto trow a b) = Eto trow (optimizeMe a) (optimizeMe b)
+        godeep (Ito trow a) = Ito trow (optimizeMe a)
+        godeep (Iand trow a b) = Iand trow (optimizeMe a) (optimizeMe b)
+        godeep (Eland trow a) = Eland trow (optimizeMe a)
+        godeep (Erand trow a) = Erand trow (optimizeMe a)
+        godeep (Ilor trow a) = Ilor trow (optimizeMe a)
+        godeep (Ilol trow a) = Ilol trow (optimizeMe a)
+        godeep (Eseq trow a b c) = Eseq trow (optimizeMe a) (optimizeMe b) (optimizeMe c)
+        godeep (Enotnot trow a) = Enotnot trow (optimizeMe a)
+
+
+
 

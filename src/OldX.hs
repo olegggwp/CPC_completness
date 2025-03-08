@@ -9,79 +9,18 @@ import           Text.Parsec.String  (Parser)
 import           Control.Monad       (void)
 import           GHC.Generics        (Generic)
 import           Data.Either         (rights)
-import           Data.List
+-- import           Data.List
+-- import           Data.List (foldr)
 import           Data.Maybe          (isJust)
 import Term
+import Data.List (sort, find, elemIndex, foldl', intercalate)
+import Parser (whitespace, lexeme, symbol)
 
-
-
-
--- main1 :: IO ()
--- main1 = do
---     input <- getContents
---     let ls = lines input
---     let parsed = map (parse contextAndTermP "") ls
---     let parsed' = rights parsed
---     let solutions = firstSol parsed'
---     let firstTree = accGetNode $ head solutions
---     putStrLn $ prettyPrintNode firstTree    
---     putStrLn "OKEQ"
-
-    -- let firstTree = (Ax (V "A" :-> V "B" :-> (V "A" `BAnd` V "B")) 11 ())
-    -- let firstTree' = toBool firstTree
-    -- let rededTree = deductionRemake firstTree' [(V "A", Add), (V "B", Add)]
-
-    -- let rededTree = deductionRemake firstTree' []
-
-    -- putStrLn $ printRow $ last parsed'
-
-    -- putStrLn $ printRow $ getRow $ head solutions
-
-    -- let was = map (rowGetTerm . getRow) solutions
-
-
-    -- putStrLn $ printNode rededTree was
-
--- debug:
-    -- putStrLn $ prettyPrintNode firstTree'
-    -- putStrLn $ prettyPrintNode rededTree
-
--- ----------------------------------
-
--- prettyPrintNode :: Show a => NodeX a -> String
--- prettyPrintNode = go 0
---     where
---         go indent node = indentStr indent ++ nodeStr node ++ "\n" ++ childrenStr indent node
-
---         nodeStr node = nodeTypeStr node ++ show (nodeGetTerm node) ++ showA (nodeGetA node)
-
---         nodeTypeStr (Ax _ _ _) = "Ax "
---         nodeTypeStr (Hyp _ _) = "Hyp "
---         nodeTypeStr (MP _ _ _ _) = "MP "
---         nodeTypeStr (Ded term n a) = "Ded " 
-
---         childrenStr indent (MP _ n1 n2 _) = go (indent + 1) n1 ++ go (indent + 1) n2
---         childrenStr indent (Ded _ n _) = go (indent + 1) n
---         childrenStr _ _ = ""
-
---         indentStr n = replicate n '\t'
-
-
-lolBool :: Bool -> String
-lolBool a = if a then " [from Original proof]" else ""
 
 searchForTerm :: Term -> [Term] -> Bool
 searchForTerm = elem
 
 
--- printNode :: NodeX Bool -> [Term] -> String
--- printNode node was = let
---     body = case node of
---         Ax term _ _    -> show term
---         Hyp term _     -> show term
---         MP _ n1 n2 _   -> printNode n1 was ++ printNode n2 was ++ show (nodeGetTerm node)
---         Ded _ n _      -> printNode n was ++ show (nodeGetTerm node)
---     in body ++ printAboutOrig node was
 
 isFromOrig :: NodeX Bool -> [Term] -> Bool
 isFromOrig node was =
@@ -93,25 +32,23 @@ printAboutOrig node was =
     if isFromOrig node was then " [from Original proof]\n" else "\n"
 
 
-whitespace :: Parser ()
-whitespace = skipMany (oneOf " \t\r")
--- whitespace = void space
--- whitespace = space
+-- whitespace :: Parser ()
+-- whitespace = skipMany (oneOf " \t\r")
 
-lexeme :: Parser a -> Parser a
-lexeme p = p <* whitespace
+-- lexeme :: Parser a -> Parser a
+-- lexeme p = p <* whitespace
 
-symbol :: String -> Parser String
-symbol = lexeme . string
+-- symbol :: String -> Parser String
+-- symbol = lexeme . string
 
-variable :: Parser Term
-variable = lexeme $ do
+variableX :: Parser Term
+variableX = lexeme $ do
     first <- letter
     rest <- many (letter <|> digit <|> char '\'')
     return $ V (first:rest)
 
-termP :: Parser Term
-termP = buildExpressionParser table term
+termXP :: Parser Term
+termXP = buildExpressionParser table term
   where
     table = [ [Prefix (tnot <$ symbol "!")]
             , [Infix  (BAnd <$ symbol "&") AssocLeft]
@@ -119,38 +56,38 @@ termP = buildExpressionParser table term
             , [Infix  ((:->) <$ symbol "->") AssocRight]
             ]
 
-    term = prefixNot <|> parens termP <|> variable 
+    term = prefixNot <|> parens termXP <|> variableX 
     parens = between (symbol "(") (symbol ")")
     prefixNot = do
         nots <- many1 (symbol "!")
         t <- term
         return $ foldr (const tnot) t nots
 
-parseTerm :: String -> Either ParseError Term
-parseTerm = parse (whitespace *> termP <* eof) "Expression"
+parseTermXX :: String -> Either ParseError Term
+parseTermXX = parse (whitespace *> termXP <* eof) "Expression"
 
-contextP :: Parser [Term]
-contextP = sepBy termP (symbol ",")
+contextXP :: Parser [Term]
+contextXP = sepBy termXP (symbol ",")
 
-contextStrP :: Parser String
-contextStrP = manyTill anyChar (try (string "|-"))
+contextStrXP :: Parser String
+contextStrXP = manyTill anyChar (try (string "|-"))
 
-contextAndTermP :: Parser Row
-contextAndTermP = do
+ctxAndTermP :: Parser Row
+ctxAndTermP = do
     _ <- many space
-    ctxStr <- contextStrP
+    ctxStr <- contextStrXP
     _ <- many space
-    expr <- termP
-    let ctx = case parse contextP "" ctxStr of
+    expr <- termXP
+    let ctx = case parse contextXP "" ctxStr of
                 Left err     -> error (show err)
                 Right result -> result
     return (ctx, expr)
 
-fileP :: Parser [Row]
-fileP = sepEndBy1 contextAndTermP (many1 (char '\n'))
+fileXP :: Parser [Row]
+fileXP = sepEndBy1 ctxAndTermP (many1 (char '\n'))
 
-parseFile :: String -> Either ParseError [Row]
-parseFile = parse (whitespace *> fileP <* eof) "File"
+parseFileXP :: String -> Either ParseError [Row]
+parseFileXP = parse (whitespace *> fileXP <* eof) "File"
 
 
 -- ----------------------------------

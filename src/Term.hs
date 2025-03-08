@@ -1,11 +1,11 @@
 -- {-# LANGUAGE DataKinds #-}
 module Term  where
 
-{-# LANGUAGE DeriveGeneric #-}
+-- {-# LANGUAGE DeriveGeneric #-}
 
 
 
-import           GHC.Generics        (Generic)
+-- import           GHC.Generics        (Generic)
 
 data Term =
       V String
@@ -13,7 +13,7 @@ data Term =
     | BAnd Term Term
     | BOr Term Term
     | BNOT
-    deriving (Eq, Generic, Ord)
+    deriving (Eq, Ord)
 infixr 2 :->
 infixl 3 `BOr`
 infixl 4 `BAnd`
@@ -35,3 +35,8 @@ tnot a = a :-> BNOT
 -- data Node x where
 --     Eto :: Node (ctx, a :-> b) -> Node (ctx, a) -> Node (ctx, Term)
 
+getAB :: Term -> (Term, Term)
+getAB (a :-> b) = (a, b)
+getAB (a `BAnd` b) = (a, b)
+getAB (a `BOr` b) = (a, b)
+getAB _ = error "getAB: not a -> b"

@@ -1,13 +1,12 @@
 module EvalTerm where 
 import Term
 import RTL
-import Data.Map (Map, lookup)
 import qualified Data.Map as Map
-import Prelude hiding (lookup)
+import Data.Map (Map)
 
 evalterm :: Map String Bool -> Term -> Bool
 evalterm estimap (V a) =
-    case lookup a estimap of
+    case Map.lookup a estimap of
         Just x -> x
         Nothing -> error "using evalterm in wrong way"
 
@@ -32,7 +31,7 @@ evalterm estimap BNOT = False
 
 modulate :: Map String Bool -> Term -> Term
 modulate estimap (V a) =
-    case lookup a estimap of
+    case Map.lookup a estimap of
         Just True -> V a
         Just False -> V a :-> BNOT
         Nothing -> error "using modulate in wrong way"

@@ -1,0 +1,30 @@
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE InstanceSigs #-}
+
+module Main where
+
+
+import           Control.Applicative ((<|>))
+import           Control.Monad       (void)
+import Data.Either ( lefts, rights )
+import           Data.List
+
+import Data.Map (Map, fromList)
+import Data.Maybe
+import Data.Maybe (fromMaybe)
+import           Data.Maybe          (isJust)
+import Data.Set (Set)
+import Debug.Trace
+import           GHC.Generics        (Generic)
+import qualified Data.Map
+import qualified Data.Map    as Map
+import qualified Data.Map as Map
+import qualified Data.Set as Set
+import           Text.Parsec.Expr
+import           Text.Parsec         hiding ((<|>))
+import           Text.Parsec (parse)
+import           Text.Parsec.String  (Parser)

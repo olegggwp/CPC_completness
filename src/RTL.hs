@@ -1,11 +1,10 @@
 {-# LANGUAGE DataKinds #-}
 module RTL where
-{-# LANGUAGE TypeOperators #-}
 
 import Term
-import Data.Map (Map, lookup)
-import qualified Data.Map as Map
-import Prelude hiding (lookup)
+import Data.List (find)
+import Control.Applicative ((<|>))
+import OldX (arePermsEquivalent)
 
 data TRow = [Term] :- Term
 
@@ -27,6 +26,9 @@ data Node =
 nodeGetTermT :: Node -> Term
 nodeGetTermT node = let (_ :- t) = nodeGetTRow node in t
 
+nodeGetCtx :: Node -> [Term]
+nodeGetCtx node = let (ctx :- t) = nodeGetTRow node in ctx
+
 nodeGetTRow :: Node -> TRow
 nodeGetTRow (InContext trow) = trow
 nodeGetTRow (Eto trow _ _) = trow
@@ -38,6 +40,7 @@ nodeGetTRow (Ilor trow _) = trow
 nodeGetTRow (Ilol trow _) = trow
 nodeGetTRow (Eseq trow _ _ _) = trow
 nodeGetTRow (Enotnot trow _) = trow
+
 
 nodeGetTypo :: Node -> String
 nodeGetTypo (InContext _) = "Ax"
@@ -103,51 +106,81 @@ insertInProof a b (Ilol trow a') = Ilol (insertInTRow a b trow) (insertInProof a
 insertInProof a b (Eseq trow a' b' c') = Eseq (insertInTRow a b trow) (insertInProof a b a') (insertInProof a b b') (insertInProof a b c')
 insertInProof a b (Enotnot trow a') = Enotnot (insertInTRow a b trow) (insertInProof a b a')
 
+getR :: Term -> Maybe Term
+getR (a :-> b) = Just b
+getR a = Nothing
 
 
--- getProof _ = undefined
+assertNode :: Node -> Bool -> Maybe Node
+assertNode node True = Nothing
+assertNode node False = Just node
 
--- data Node a where
---     InContext :: TRow -> Node x
---     Eto :: Node a -> Node b -> Node r
---     Ito :: Node a -> Node r
---     Iand :: Node a -> Node b -> Node r
---     Eland :: Node a -> Node r
---     Erand :: Node a -> Node r
---     Ilor :: Node a -> Node r
---     Ilol :: Node a -> Node r
---     Eseq :: Node a -> Node b -> Node c -> Node r
---     Enotnot :: Node a -> Node r
-
-
--- getRight :: Term -> Term
--- getRight (_ :-> b) = b
--- getRight _ = error "getRight: not a right term"
-
--- nodeGetTRow :: Node a -> TRow
--- nodeGetTRow (InContext trow) = trow
--- nodeGetTRow (Eto a _ ) = g :- getRight x
---     where
---         (g :- x) = nodeGetTRow a
--- nodeGetTRow (Ito a) = g :- getRight x
---     where
---         (g :- x) = nodeGetTRow a
+validateMe :: Node -> Maybe Node
+validateMe x = Just x
+-- validateMe (InContext (g :- term)) =
+--   case find (== term) g of
+--     Just _ -> Nothing
+--     Nothing -> Just (InContext (g :- term))
 
 
 
--- getProof :: TRow -> Node
--- getProof t@(g :- (V x)) =
---     -- можно было бы сделать проверочку
---     InContext t
--- getProof t@(g :- BNOT) = 
---     InContext t
+-- validateMe me@(Eto (g :- psi) a b) = let
+--     (g1 :- term1) = nodeGetTRow a
+--     (g2 :- phi) = nodeGetTRow b
+--     tr1 = if (phi :-> psi) == term1 
+--       then Nothing 
+--       else Just me
+--     in validateMe a <|> validateMe b <|> tr1 <|> sameCtxWithSons me
 
--- getProof (g :- (a :-> b)) = 
---     Eto (g :- (a :-> b)) xx (getProof (g :- b))
---     where
---         c = a :-> b
---         xx = Eto (g :- (b :-> c)) -- (getProof (g :- (b :-> c)))
 
--- getProof (g :- (a `BAnd` b)) = undefined
+-- validateMe me@(Ito (g :- tme) a) = let
+--   (a1, b1) = getAB tme
+--   (g1 :- psi) = nodeGetTRow a
+--   tr0 = assertNode me $ isAtoB tme
+--   tr1 = assertNode me $ b1 == psi && arePermsEquivalent g1 (a1 : g)
+--   in validateMe a <|> tr0 <|> tr1
 
--- getProof (g :- (a `BOr` b)) = undefined
+-- validateMe me@(Iand trow a b) = let
+--   (_ :- met) = nodeGetTRow me
+--   (g1 :- aa) = nodeGetTRow a
+--   (g2 :- bb) = nodeGetTRow b
+--   tr1 = if met == (aa `BAnd` bb) then Nothing else Just me
+--   in validateMe a <|> validateMe b <|> sameCtxWithSons me <|> tr1
+
+-- validateMe me@(Eland trow a) = validateMe a <|> sameCtxWithSons me
+-- validateMe me@(Erand trow a) = validateMe a <|> sameCtxWithSons me
+-- validateMe me@(Ilor trow a) = validateMe a <|> sameCtxWithSons me
+-- validateMe me@(Ilol trow a) = validateMe a <|> sameCtxWithSons me
+-- validateMe me@(Eseq trow a b c) = validateMe a <|> validateMe b <|> validateMe c
+-- validateMe me@(Enotnot trow a) = validateMe a
+
+
+isAtoB :: Term -> Bool
+isAtoB (a :-> b) = True
+isAtoB _ = False
+
+getAandB :: Term -> (Term, Term)
+getAandB (a `BAnd` b) = (a, b)
+getAandB _ = error "not a and b"
+-- arePermsEquivalent
+
+sameCtxWithSons :: Node -> Maybe Node
+sameCtxWithSons node = let 
+  sonsG = nodeGetCtx <$> getSonNodes node
+  myG = nodeGetCtx node
+  in if all (arePermsEquivalent myG) sonsG then Nothing else Just node
+
+
+-- thowOnInvalid :: Node -> Node
+-- thowOnInvalid node = case validateMe node of
+--     Just invalidNode -> error $ "lemm is invalid" ++ show (nodeGetTRow invalidNode)
+--     Nothing -> node
+
+
+thowOnInvalidstr :: String -> Node -> Node
+thowOnInvalidstr str node = node
+-- thowOnInvalidstr str node = case validateMe node of
+--     Just invalidNode -> error $ str ++ " lemm is invalid :\n" ++ show (nodeGetTRow invalidNode) 
+--       ++ " \nsons: " ++ show (nodeGetTRow <$> getSonNodes invalidNode)
+--       ++ "\ntype: " ++ nodeGetTypo invalidNode
+--     Nothing -> node

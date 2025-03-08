@@ -1,22 +1,81 @@
 module Lemms where
 
 import           Data.Either (lefts, rights)
-import           Data.Map    (Map, lookup)
+import           Data.Map    (Map)
 import qualified Data.Map    as Map
 import           EvalTerm
 import           OldX
-import           Prelude     hiding (lookup)
 import           Reform      (reform, moveRight)
 import           RTL
 import           Term
 import           Text.Parsec (parse)
 
 
+sekLemmNode :: Node
+sekLemmNode = 
+    let adder = "A->B, !A->B|-"
+        p1 = (adder ++) <$>
+            ["A->B",
+            "(A -> B) -> (!B -> (A -> B))"
+            , "!B -> (A -> B)"
+            , "!B -> (A -> !B)"
+            , "(A -> B) -> ((A -> !B) -> !A)"
+            , "((A -> B) -> ((A -> !B) -> !A)) -> (!B -> ((A -> B) -> ((A -> !B) -> !A)))"
+            , "!B -> ((A -> B) -> ((A -> !B) -> !A))"
+            , "(!B -> (A -> B)) -> ((!B -> ((A -> B) -> ((A -> !B) -> !A))) -> (!B -> ((A -> !B) -> !A)))"
+            , "(!B -> ((A -> B) -> ((A -> !B) -> !A))) -> (!B -> ((A -> !B) -> !A))"
+            , "!B -> ((A -> !B) -> !A)"
+            , "(!B -> (A -> !B)) -> ((!B -> ((A -> !B) -> !A)) -> (!B -> !A))"
+            , "(!B -> ((A -> !B) -> !A)) -> (!B -> !A)"
+            , "!B -> !A",
+            "!A->B",
+            "(!A -> B) -> (!B -> (!A -> B))"
+            , "!B -> (!A -> B)"
+            , "!B -> (!A -> !B)"
+            , "(!A -> B) -> ((!A -> !B) -> !!A)"
+            , "((!A -> B) -> ((!A -> !B) -> !!A)) -> (!B -> ((!A -> B) -> ((!A -> !B) -> !!A)))"
+            , "!B -> ((!A -> B) -> ((!A -> !B) -> !!A))"
+            , "(!B -> (!A -> B)) -> ((!B -> ((!A -> B) -> ((!A -> !B) -> !!A))) -> (!B -> ((!A -> !B) -> !!A)))"
+            , "(!B -> ((!A -> B) -> ((!A -> !B) -> !!A))) -> (!B -> ((!A -> !B) -> !!A))"
+            , "!B -> ((!A -> !B) -> !!A)"
+            , "(!B -> (!A -> !B)) -> ((!B -> ((!A -> !B) -> !!A)) -> (!B -> !!A))"
+            , "(!B -> ((!A -> !B) -> !!A)) -> (!B -> !!A)"
+            , "!B -> !!A",
+            "(!B -> !A) -> (!B -> !!A) -> !!B",
+            "(!B -> !!A) -> !!B",
+            "!!B",
+            "!!B -> B",
+            "B"]
+        p2 = p1 ++ ["(A->B) |- (!A->B) -> B",
+                    "|-(A->B) -> (!A->B) -> B"]
+    in justPeremena p2
+
+sekLemm :: Term -> Term -> Node
+sekLemm a b =
+    thowOnInvalidstr "sekLemm " $
+    insertInProof a b $ 
+    sekLemmNode
+    
+
+
+
+justPeremena :: [String] ->  Node
+justPeremena ls =
+    let
+    parsed = map (parse ctxAndTermP "") ls
+    solutions = firstSol $ rights parsed
+    errors = lefts parsed
+    twoTree = if null errors then reform $ accGetNode $ head solutions
+    else
+        error $ "First parse error: " ++ show (head errors)
+    -- res = insertInProof a b 
+    in twoTree
+
 
 peremena :: Term -> Term -> [String] ->  Node
 peremena a b ls =
     let
-    parsed = map (parse contextAndTermP "") ls
+    parsed = map (parse ctxAndTermP "") ls
     solutions = firstSol $ rights parsed
     errors = lefts parsed
     twoTree = if null errors then reform $ accGetNode $ head solutions
@@ -32,8 +91,8 @@ getLemm estimap (a :-> b) =
         if evalterm estimap a then
             lemmTo10 a b
             -- undefined -- a :- !!a
-            else 
-                InContext $ [tnot a] :- (tnot a) -- !a :- !a
+            else
+                InContext $ [tnot a, tnot BNOT] :- (tnot a) -- !a :- !a
     else
 
         case (evalterm estimap a, evalterm estimap b) of
@@ -46,14 +105,11 @@ getLemm estimap (a :-> b) =
         (True, True)   -> lemmTo11 a b
 
 
-getLemm estimap (a `BAnd` b) = case (evalterm estimap a, evalterm estimap b) of
-    (False, False) -> lemmAnd00 a b
-
-    (True, False)  -> lemmAnd10 a b
-
-    (False, True)  -> lemmAnd01 a b
-
-    (True, True)   -> lemmAnd11 a b
+getLemm estimap (a `BAnd` b) = thowOnInvalidstr ("BAND " ) $ case (evalterm estimap a, evalterm estimap b) of
+    (False, False) -> thowOnInvalidstr ("BAND00 " ) $ lemmAnd00 a b
+    (True, False)  -> thowOnInvalidstr ("BAND10 " ) $ lemmAnd10 a b
+    (False, True)  -> thowOnInvalidstr ("BAND01 " ) $ lemmAnd01 a b
+    (True, True)   -> thowOnInvalidstr ("BAND11 " ) $ lemmAnd11 a b
 
 getLemm estimap (a `BOr` b) = case (evalterm estimap a, evalterm estimap b) of
     (False, False) -> lemmOr00 a b
@@ -162,45 +218,17 @@ lemmTo11 a b =
     ]
 
 lemmTo10 :: Term -> Term -> Node
-lemmTo10 a b = let
+lemmTo10 a b =
+    let
     gs = [a:->b, a, b :-> BNOT]
     s1 = InContext (gs :- a)
     s2 = InContext (gs :- (a :-> b))
     s3 = InContext (gs :- (b :-> BNOT))
     s4 = Eto (gs :- b) s2 s1
     s5 = Eto (gs :- BNOT) s3 s4
-    res = moveRight 1 s5 
-    in 
+    res = moveRight 1 s5
+    in
     res
-    -- peremena a b $
-    -- let xx = "A,!B |- " in
-    --       ["A,!B |- "]
-
-
-    -- peremena a b $
-    -- let xx = "A,!B |- " in
-    --       ((xx ++) <$>
-    --       [
-    --         "A"
-    --       , "!B"
-    --       , "!B -> (A -> B) -> !B"
-    --       , "(A -> B) -> !B"
-    --       , "((A -> B) -> A) -> ((A -> B) -> (A -> B)) -> ((A -> B) -> B)"
-    --       , "A -> (A -> B) -> A"
-    --       , "(A -> B) -> A"
-    --       , "((A -> B) -> (A -> B)) -> ((A -> B) -> B)"
-    --       ])
-    --       ++
-    --       [ "A,!B, (A -> B) |-  (A -> B) "
-    --       , "A,!B |- ((A -> B) -> (A -> B)) "]
-    --         ++
-    --     ((xx ++) <$>
-    --     [
-    --        "(A -> B) -> B"
-    --       , "((A -> B) -> B) -> ((A -> B) -> !B) -> !(A -> B)"
-    --       , "((A -> B) -> !B) -> !(A -> B)"
-    --       , "!(A -> B)"
-    --     ])
 
 
 
@@ -222,39 +250,5 @@ lemmTo00 a b =
     , xx ++ "B"
     , "!A, !B|- A -> B"
     ]
-
-
-
--- hardLemm1 :: Term -> Term -> Node
--- hardLemm1 a b =
---     let
---     g1 = [a:->BNOT, b :-> BNOT, a]
---     s1 = InContext $ g1 :- a
--- --   [ "A"
---     s2 = sc1 g1 a (tnot (a :-> b))
--- --   , "A -> !(A -> B) -> A"
---     s3 = Eto (g1 :- ((tnot (a:->b)) :-> a)) s2 s1
--- --   , "!(A -> B) -> A"
---     s4 = InContext $ g1 :- tnot a
--- --   , "!A"
---     s5 = sc1 g1 (tnot a) (tnot (a :-> b))
--- --   , "!A -> !(A -> B) -> !A"
---     s6 = Eto (g1 :- (tnot (a:->b) :-> tnot a)) s5 s4
--- --   , "!(A -> B) -> !A"
---     s7 = sc9 g1 (tnot (a:->b)) a
--- --   , "(!(A -> B) -> A) -> (!(A -> B) -> !A) -> !!(A -> B)"
---     s8 = Eto (g1 :- (((tnot (a :-> b)) :-> tnot a) :-> (tnot (tnot (a :-> b))))) s7 s3
--- --   , "(!(A -> B) -> !A) -> !!(A -> B)"
---     s9 = Eto (g1 :- (tnot (tnot (a :-> b)))) s8 s6
--- --   , "!!(A -> B)"
---     s10 = sc10 g1 (a :-> b)
--- --   , "!!(A -> B) -> (A -> B)"
---     s11 = Eto (g1 :- (a :-> b)) s10 s9
--- --   , "A -> B"
---     s12 = Eto (g1 :- b) s11 s1
--- --   , "B"
---     in
---     s12
-
 
 

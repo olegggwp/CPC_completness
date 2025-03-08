@@ -1,5 +1,5 @@
 module Parser where
-{-# LANGUAGE DeriveGeneric #-}
+-- {-# LANGUAGE DeriveGeneric #-}
 import Term 
 import           Control.Applicative ((<|>))
 import           Text.Parsec         hiding ((<|>))
