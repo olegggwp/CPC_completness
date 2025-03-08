@@ -713,7 +713,7 @@ sc10 g a =
 
 
 data TRow = [Term] :- Term
-
+    -- deriving (Show)
 instance Show TRow where
     show (ctx :- term) = show ctx ++ " :- " ++ show term
 
@@ -728,6 +728,7 @@ data Node =
   | Ilol TRow Node
   | Eseq TRow Node Node Node
   | Enotnot TRow Node
+  -- deriving (Show)
 
 nodeGetTermT :: Node -> Term
 nodeGetTermT node = let (_ :- t) = nodeGetTRow node in t
@@ -922,7 +923,8 @@ getEstimaps names = Data.Map.fromList <$> getEstimaps' names
 
 printSolution :: Term -> IO ()
 printSolution term = do
-    let noda = optimizeMe $ mm (getVarsUniq term) []
+    -- let noda = optimizeMe $ mm (getVarsUniq term) []
+    let noda = mm (getVarsUniq term) []
     printNode 0 noda
 
 
@@ -1017,7 +1019,7 @@ main = do
 
 
 sekLemmNode :: Node
-sekLemmNode = 
+sekLemmNode =
     let adder = "A->B, !A->B|-"
         p1 = (adder ++) <$>
             ["A->B",
@@ -1058,9 +1060,9 @@ sekLemmNode =
 sekLemm :: Term -> Term -> Node
 sekLemm a b =
     -- thowOnInvalidstr "sekLemm " $
-    insertInProof a b $ 
+    insertInProof a b $
     sekLemmNode
-    
+
 
 
 
@@ -1096,7 +1098,7 @@ getLemm estimap (a :-> b) =
         if evalterm estimap a then
             lemmTo10 a b
             else
-                InContext $ [tnot a, tnot BNOT] :- (tnot a) -- !a :- !a
+                InContext $ [tnot a, tnot BNOT] :- tnot a -- !a :- !a
     else
 
         case (evalterm estimap a, evalterm estimap b) of
@@ -1107,43 +1109,20 @@ getLemm estimap (a :-> b) =
 
 
 getLemm estimap (a `BAnd` b) = case (evalterm estimap a, evalterm estimap b) of
-    (False, False) -> lemmAnd00 a b
-    (True, False)  -> lemmAnd10 a b
-    (False, True)  -> lemmAnd01 a b
-    (True, True)   -> lemmAnd11 a b
+    (False, False) -> insertInProof a b lemmAnd00Node
+    (True, False)  -> insertInProof a b lemmAnd10Node
+    (False, True)  -> insertInProof a b lemmAnd01Node
+    (True, True)   -> insertInProof a b lemmAnd11Node
 
 getLemm estimap (a `BOr` b) = case (evalterm estimap a, evalterm estimap b) of
-    (False, False) -> lemmOr00 a b
-    (True, False)  -> lemmOr10 a b
-    (False, True)  -> lemmOr01 a b
-    (True, True)   -> lemmOr11 a b
+    (False, False) -> insertInProof a b lemmOr00Node
+    (True, False)  -> insertInProof a b lemmOr10Node
+    (False, True)  -> insertInProof a b lemmOr01Node
+    (True, True)   -> insertInProof a b lemmOr11Node
 
 
 getLemm _  _= undefined
 
-lemmOr11 :: Term -> Term -> Node
-lemmOr11 a b = insertInProof a b lemmOr11Node
-
-lemmOr01 :: Term -> Term -> Node
-lemmOr01 a b = insertInProof a b lemmOr01Node
-
-lemmOr10 :: Term -> Term -> Node
-lemmOr10 a b = insertInProof a b lemmOr10Node
-
-lemmOr00 :: Term -> Term -> Node
-lemmOr00 a b = insertInProof a b lemmOr00Node
-
-lemmAnd11 :: Term -> Term -> Node
-lemmAnd11 a b = insertInProof a b lemmAnd11Node
-
-lemmAnd01 :: Term -> Term -> Node
-lemmAnd01 a b = insertInProof a b lemmAnd01Node
-
-lemmAnd10 :: Term -> Term -> Node
-lemmAnd10 a b = insertInProof a b lemmAnd10Node
-
-lemmAnd00 :: Term -> Term -> Node
-lemmAnd00 a b = insertInProof a b lemmAnd00Node
 
 lemmTo01 :: Term -> Term -> Node
 lemmTo01 a b = insertInProof a b lemmTo01Node
@@ -1187,7 +1166,9 @@ lemmAnd11Node = justPeremena $
             "A & B"]
 
 lemmAnd01Node ::  Node
-lemmAnd01Node = justPeremena $
+lemmAnd01Node = 
+    -- Eto ([V "A" :-> BNOT,V "B"] :- (BAnd (V "A") (V "B") :-> BNOT)) (Eto ([V "A" :-> BNOT,V "B"] :- ((BAnd (V "A") (V "B") :-> (V "A" :-> BNOT)) :-> (BAnd (V "A") (V "B") :-> BNOT))) (Ito ([V "A" :-> BNOT,V "B"] :- ((BAnd (V "A") (V "B") :-> V "A") :-> ((BAnd (V "A") (V "B") :-> (V "A" :-> BNOT)) :-> (BAnd (V "A") (V "B") :-> BNOT)))) (Ito ([BAnd (V "A") (V "B") :-> V "A",V "A" :-> BNOT,V "B"] :- ((BAnd (V "A") (V "B") :-> (V "A" :-> BNOT)) :-> (BAnd (V "A") (V "B") :-> BNOT))) (Ito ([BAnd (V "A") (V "B") :-> (V "A" :-> BNOT),BAnd (V "A") (V "B") :-> V "A",V "A" :-> BNOT,V "B"] :- (BAnd (V "A") (V "B") :-> BNOT)) (Eto ([BAnd (V "A") (V "B"),BAnd (V "A") (V "B") :-> (V "A" :-> BNOT),BAnd (V "A") (V "B") :-> V "A",V "A" :-> BNOT,V "B"] :- BNOT) (Eto ([BAnd (V "A") (V "B"),BAnd (V "A") (V "B") :-> (V "A" :-> BNOT),BAnd (V "A") (V "B") :-> V "A",V "A" :-> BNOT,V "B"] :- (V "A" :-> BNOT)) (InContext ([BAnd (V "A") (V "B"),BAnd (V "A") (V "B") :-> (V "A" :-> BNOT),BAnd (V "A") (V "B") :-> V "A",V "A" :-> BNOT,V "B"] :- (BAnd (V "A") (V "B") :-> (V "A" :-> BNOT)))) (InContext ([BAnd (V "A") (V "B"),BAnd (V "A") (V "B") :-> (V "A" :-> BNOT),BAnd (V "A") (V "B") :-> V "A",V "A" :-> BNOT,V "B"] :- BAnd (V "A") (V "B")))) (Eto ([BAnd (V "A") (V "B"),BAnd (V "A") (V "B") :-> (V "A" :-> BNOT),BAnd (V "A") (V "B") :-> V "A",V "A" :-> BNOT,V "B"] :- V "A") (InContext ([BAnd (V "A") (V "B"),BAnd (V "A") (V "B") :-> (V "A" :-> BNOT),BAnd (V "A") (V "B") :-> V "A",V "A" :-> BNOT,V "B"] :- (BAnd (V "A") (V "B") :-> V "A"))) (InContext ([BAnd (V "A") (V "B"),BAnd (V "A") (V "B") :-> (V "A" :-> BNOT),BAnd (V "A") (V "B") :-> V "A",V "A" :-> BNOT,V "B"] :- BAnd (V "A") (V "B")))))))) (Ito ([V "A" :-> BNOT,V "B"] :- (BAnd (V "A") (V "B") :-> V "A")) (Eland ([BAnd (V "A") (V "B"),V "A" :-> BNOT,V "B"] :- V "A") (InContext ([BAnd (V "A") (V "B"),V "A" :-> BNOT,V "B"] :- BAnd (V "A") (V "B")))))) (Eto ([V "A" :-> BNOT,V "B"] :- (BAnd (V "A") (V "B") :-> (V "A" :-> BNOT))) (Ito ([V "A" :-> BNOT,V "B"] :- ((V "A" :-> BNOT) :-> (BAnd (V "A") (V "B") :-> (V "A" :-> BNOT)))) (Ito ([V "A" :-> BNOT,V "A" :-> BNOT,V "B"] :- (BAnd (V "A") (V "B") :-> (V "A" :-> BNOT))) (InContext ([V "A" :-> BNOT,BAnd (V "A") (V "B"),V "A" :-> BNOT,V "B"] :- (V "A" :-> BNOT))))) (InContext ([V "A" :-> BNOT,V "B"] :- (V "A" :-> BNOT))))
+    justPeremena $
     let xx = "!A,B |- " in
           (xx ++) <$>
     [ "!A", "!A -> A & B -> !A",
@@ -1200,7 +1181,10 @@ lemmAnd01Node = justPeremena $
       ]
 
 lemmAnd10Node ::  Node
-lemmAnd10Node = justPeremena $
+lemmAnd10Node = 
+    -- Eto ([V "A",V "B" :-> BNOT] :- (BAnd (V "A") (V "B") :-> BNOT)) (Eto ([V "A",V "B" :-> BNOT] :- ((BAnd (V "A") (V "B") :-> (V "B" :-> BNOT)) :-> (BAnd (V "A") (V "B") :-> BNOT))) (Ito ([V "A",V "B" :-> BNOT] :- ((BAnd (V "A") (V "B") :-> V "B") :-> ((BAnd (V "A") (V "B") :-> (V "B" :-> BNOT)) :-> (BAnd (V "A") (V "B") :-> BNOT)))) (Ito ([BAnd (V "A") (V "B") :-> V "B",V "A",V "B" :-> BNOT] :- ((BAnd (V "A") (V "B") :-> (V "B" :-> BNOT)) :-> (BAnd (V "A") (V "B") :-> BNOT))) (Ito ([BAnd (V "A") (V "B") :-> (V "B" :-> BNOT),BAnd (V "A") (V "B") :-> V "B",V "A",V "B" :-> BNOT] :- (BAnd (V "A") (V "B") :-> BNOT)) (Eto ([BAnd (V "A") (V "B"),BAnd (V "A") (V "B") :-> (V "B" :-> BNOT),BAnd (V "A") (V "B") :-> V "B",V "A",V "B" :-> BNOT] :- BNOT) (Eto ([BAnd (V "A") (V "B"),BAnd (V "A") (V "B") :-> (V "B" :-> BNOT),BAnd (V "A") (V "B") :-> V "B",V "A",V "B" :-> BNOT] :- (V "B" :-> BNOT)) (InContext ([BAnd (V "A") (V "B"),BAnd (V "A") (V "B") :-> (V "B" :-> BNOT),BAnd (V "A") (V "B") :-> V "B",V "A",V "B" :-> BNOT] :- (BAnd (V "A") (V "B") :-> (V "B" :-> BNOT)))) (InContext ([BAnd (V "A") (V "B"),BAnd (V "A") (V "B") :-> (V "B" :-> BNOT),BAnd (V "A") (V "B") :-> V "B",V "A",V "B" :-> BNOT] :- BAnd (V "A") (V "B")))) (Eto ([BAnd (V "A") (V "B"),BAnd (V "A") (V "B") :-> (V "B" :-> BNOT),BAnd (V "A") (V "B") :-> V "B",V "A",V "B" :-> BNOT] :- V "B") (InContext ([BAnd (V "A") (V "B"),BAnd (V "A") (V "B") :-> (V "B" :-> BNOT),BAnd (V "A") (V "B") :-> V "B",V "A",V "B" :-> BNOT] :- (BAnd (V "A") (V "B") :-> V "B"))) (InContext ([BAnd (V "A") (V "B"),BAnd (V "A") (V "B") :-> (V "B" :-> BNOT),BAnd (V "A") (V "B") :-> V "B",V "A",V "B" :-> BNOT] :- BAnd (V "A") (V "B")))))))) (Ito ([V "A",V "B" :-> BNOT] :- (BAnd (V "A") (V "B") :-> V "B")) (Erand ([BAnd (V "A") (V "B"),V "A",V "B" :-> BNOT] :- V "B") (InContext ([BAnd (V "A") (V "B"),V "A",V "B" :-> BNOT] :- BAnd (V "A") (V "B")))))) (Eto ([V "A",V "B" :-> BNOT] :- (BAnd (V "A") (V "B") :-> (V "B" :-> BNOT))) (Ito ([V "A",V "B" :-> BNOT] :- ((V "B" :-> BNOT) :-> (BAnd (V "A") (V "B") :-> (V "B" :-> BNOT)))) (Ito ([V "B" :-> BNOT,V "A",V "B" :-> BNOT] :- (BAnd (V "A") (V "B") :-> (V "B" :-> BNOT))) (InContext ([V "B" :-> BNOT,BAnd (V "A") (V "B"),V "A",V "B" :-> BNOT] :- (V "B" :-> BNOT))))) (InContext ([V "A",V "B" :-> BNOT] :- (V "B" :-> BNOT))))
+
+    justPeremena $
     let xx = "A,!B |- " in
           (xx ++) <$>
     [ "!B","!B -> A & B -> !B",
@@ -1235,7 +1219,7 @@ lemmTo01Node  =
     ]
 
 lemmTo11Node :: Node
-lemmTo11Node = 
+lemmTo11Node =
     justPeremena $
     let xx = "A,B |- " in
           (xx ++) <$>
@@ -1246,9 +1230,9 @@ lemmTo11Node =
     ]
 
 lemmTo00Node :: Node
-lemmTo00Node = 
-    let 
-    xx = "!A, !B, A |- " 
+lemmTo00Node =
+    let
+    xx = "!A, !B, A |- "
     res =   ((xx ++) <$> [ "A",
             "A -> !(A -> B) -> A",
             "!(A -> B) -> A",
@@ -1263,7 +1247,7 @@ lemmTo00Node =
             "B"])
                 ++
              ["!A, !B|- A -> B"]
-            
+
     in justPeremena res
 
 lemmTo10 :: Term -> Term -> Node
@@ -1418,6 +1402,7 @@ data Term =
     | BOr Term Term
     | BNOT
     deriving (Eq, Ord)
+    -- deriving (Eq, Ord, Show)
 infixr 2 :->
 infixl 3 `BOr`
 infixl 4 `BAnd`

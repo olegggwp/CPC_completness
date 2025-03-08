@@ -36,7 +36,8 @@ getEstimaps names = Data.Map.fromList <$> getEstimaps' names
 
 printSolution :: Term -> IO ()
 printSolution term = do
-    let noda = optimizeMe $ mm (getVarsUniq term) []
+    -- let noda = optimizeMe $ mm (getVarsUniq term) []
+    let noda = mm (getVarsUniq term) []
     printNode 0 noda
 
 

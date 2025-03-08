@@ -7,7 +7,7 @@ import Control.Applicative ((<|>))
 import OldX (arePermsEquivalent)
 
 data TRow = [Term] :- Term
-
+    -- deriving (Show)
 instance Show TRow where
     show (ctx :- term) = show ctx ++ " :- " ++ show term
 
@@ -22,6 +22,7 @@ data Node =
   | Ilol TRow Node
   | Eseq TRow Node Node Node
   | Enotnot TRow Node
+  -- deriving (Show)
 
 nodeGetTermT :: Node -> Term
 nodeGetTermT node = let (_ :- t) = nodeGetTRow node in t

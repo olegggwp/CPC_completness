@@ -14,6 +14,7 @@ data Term =
     | BOr Term Term
     | BNOT
     deriving (Eq, Ord)
+    -- deriving (Eq, Ord, Show)
 infixr 2 :->
 infixl 3 `BOr`
 infixl 4 `BAnd`
