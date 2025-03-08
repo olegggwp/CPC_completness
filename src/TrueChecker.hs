@@ -36,7 +36,9 @@ getEstimaps names = Data.Map.fromList <$> getEstimaps' names
 
 printSolution :: Term -> IO ()
 printSolution term = do
-    let noda = thowOnInvalidstr "FINAL ERROR" $ optimizeMe $ mm (getVarsUniq term) []
+    let noda = 
+                thowOnInvalidstr "FINAL ERROR" $ 
+                optimizeMe $ mm (getVarsUniq term) []
     printNode 0 noda
     
     -- printNode 0 noda

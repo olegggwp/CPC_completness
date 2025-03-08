@@ -16,31 +16,31 @@ sekLemmNode =
     let adder = "A->B, !A->B|-"
         p1 = (adder ++) <$>
             ["A->B",
-            "(A -> B) -> (!B -> (A -> B))"
-            , "!B -> (A -> B)"
-            , "!B -> (A -> !B)"
-            , "(A -> B) -> ((A -> !B) -> !A)"
-            , "((A -> B) -> ((A -> !B) -> !A)) -> (!B -> ((A -> B) -> ((A -> !B) -> !A)))"
-            , "!B -> ((A -> B) -> ((A -> !B) -> !A))"
-            , "(!B -> (A -> B)) -> ((!B -> ((A -> B) -> ((A -> !B) -> !A))) -> (!B -> ((A -> !B) -> !A)))"
-            , "(!B -> ((A -> B) -> ((A -> !B) -> !A))) -> (!B -> ((A -> !B) -> !A))"
-            , "!B -> ((A -> !B) -> !A)"
-            , "(!B -> (A -> !B)) -> ((!B -> ((A -> !B) -> !A)) -> (!B -> !A))"
-            , "(!B -> ((A -> !B) -> !A)) -> (!B -> !A)"
-            , "!B -> !A",
+            "(A -> B) -> (!B -> (A -> B))",
+            "!B -> (A -> B)",
+            "!B -> (A -> !B)",
+            "(A -> B) -> ((A -> !B) -> !A)",
+            "((A -> B) -> ((A -> !B) -> !A)) -> (!B -> ((A -> B) -> ((A -> !B) -> !A)))",
+            "!B -> ((A -> B) -> ((A -> !B) -> !A))",
+            "(!B -> (A -> B)) -> ((!B -> ((A -> B) -> ((A -> !B) -> !A))) -> (!B -> ((A -> !B) -> !A)))",
+            "(!B -> ((A -> B) -> ((A -> !B) -> !A))) -> (!B -> ((A -> !B) -> !A))",
+            "!B -> ((A -> !B) -> !A)",
+            "(!B -> (A -> !B)) -> ((!B -> ((A -> !B) -> !A)) -> (!B -> !A))",
+            "(!B -> ((A -> !B) -> !A)) -> (!B -> !A)",
+            "!B -> !A",
             "!A->B",
-            "(!A -> B) -> (!B -> (!A -> B))"
-            , "!B -> (!A -> B)"
-            , "!B -> (!A -> !B)"
-            , "(!A -> B) -> ((!A -> !B) -> !!A)"
-            , "((!A -> B) -> ((!A -> !B) -> !!A)) -> (!B -> ((!A -> B) -> ((!A -> !B) -> !!A)))"
-            , "!B -> ((!A -> B) -> ((!A -> !B) -> !!A))"
-            , "(!B -> (!A -> B)) -> ((!B -> ((!A -> B) -> ((!A -> !B) -> !!A))) -> (!B -> ((!A -> !B) -> !!A)))"
-            , "(!B -> ((!A -> B) -> ((!A -> !B) -> !!A))) -> (!B -> ((!A -> !B) -> !!A))"
-            , "!B -> ((!A -> !B) -> !!A)"
-            , "(!B -> (!A -> !B)) -> ((!B -> ((!A -> !B) -> !!A)) -> (!B -> !!A))"
-            , "(!B -> ((!A -> !B) -> !!A)) -> (!B -> !!A)"
-            , "!B -> !!A",
+            "(!A -> B) -> (!B -> (!A -> B))",
+            "!B -> (!A -> B)",
+            "!B -> (!A -> !B)",
+            "(!A -> B) -> ((!A -> !B) -> !!A)",
+            "((!A -> B) -> ((!A -> !B) -> !!A)) -> (!B -> ((!A -> B) -> ((!A -> !B) -> !!A)))",
+            "!B -> ((!A -> B) -> ((!A -> !B) -> !!A))",
+            "(!B -> (!A -> B)) -> ((!B -> ((!A -> B) -> ((!A -> !B) -> !!A))) -> (!B -> ((!A -> !B) -> !!A)))",
+            "(!B -> ((!A -> B) -> ((!A -> !B) -> !!A))) -> (!B -> ((!A -> !B) -> !!A))",
+            "!B -> ((!A -> !B) -> !!A)",
+            "(!B -> (!A -> !B)) -> ((!B -> ((!A -> !B) -> !!A)) -> (!B -> !!A))",
+            "(!B -> ((!A -> !B) -> !!A)) -> (!B -> !!A)",
+            "!B -> !!A",
             "(!B -> !A) -> (!B -> !!A) -> !!B",
             "(!B -> !!A) -> !!B",
             "!!B",
@@ -52,7 +52,7 @@ sekLemmNode =
 
 sekLemm :: Term -> Term -> Node
 sekLemm a b =
-    thowOnInvalidstr "sekLemm " $
+    -- thowOnInvalidstr "sekLemm " $
     insertInProof a b $ 
     sekLemmNode
     
@@ -90,67 +90,90 @@ getLemm estimap (a :-> b) =
     if b == BNOT then
         if evalterm estimap a then
             lemmTo10 a b
-            -- undefined -- a :- !!a
             else
                 InContext $ [tnot a, tnot BNOT] :- (tnot a) -- !a :- !a
     else
 
         case (evalterm estimap a, evalterm estimap b) of
         (False, False) -> lemmTo00 a b
-
         (True, False)  -> lemmTo10 a b
-
         (False, True)  -> lemmTo01 a b
-
         (True, True)   -> lemmTo11 a b
 
 
-getLemm estimap (a `BAnd` b) = thowOnInvalidstr ("BAND " ) $ case (evalterm estimap a, evalterm estimap b) of
-    (False, False) -> thowOnInvalidstr ("BAND00 " ) $ lemmAnd00 a b
-    (True, False)  -> thowOnInvalidstr ("BAND10 " ) $ lemmAnd10 a b
-    (False, True)  -> thowOnInvalidstr ("BAND01 " ) $ lemmAnd01 a b
-    (True, True)   -> thowOnInvalidstr ("BAND11 " ) $ lemmAnd11 a b
+getLemm estimap (a `BAnd` b) = case (evalterm estimap a, evalterm estimap b) of
+    (False, False) -> lemmAnd00 a b
+    (True, False)  -> lemmAnd10 a b
+    (False, True)  -> lemmAnd01 a b
+    (True, True)   -> lemmAnd11 a b
 
 getLemm estimap (a `BOr` b) = case (evalterm estimap a, evalterm estimap b) of
     (False, False) -> lemmOr00 a b
-
     (True, False)  -> lemmOr10 a b
-
     (False, True)  -> lemmOr01 a b
-
     (True, True)   -> lemmOr11 a b
 
 
 getLemm _  _= undefined
 
 lemmOr11 :: Term -> Term -> Node
-lemmOr11 a b = peremena a b $
-    let xx = "A,B |- " in
-          (xx ++) <$> [ "A", "A -> A | B", "A | B"]
-        --   [ "A", "B",
-        --     "A -> B -> A & B", 
-        --     "B -> A & B", 
-        --     "A & B"]
+lemmOr11 a b = insertInProof a b lemmOr11Node
 
 lemmOr01 :: Term -> Term -> Node
-lemmOr01 a b = peremena a b $
+lemmOr01 a b = insertInProof a b lemmOr01Node
+
+lemmOr10 :: Term -> Term -> Node
+lemmOr10 a b = insertInProof a b lemmOr10Node
+
+lemmOr00 :: Term -> Term -> Node
+lemmOr00 a b = insertInProof a b lemmOr00Node
+
+lemmAnd11 :: Term -> Term -> Node
+lemmAnd11 a b = insertInProof a b lemmAnd11Node
+
+lemmAnd01 :: Term -> Term -> Node
+lemmAnd01 a b = insertInProof a b lemmAnd01Node
+
+lemmAnd10 :: Term -> Term -> Node
+lemmAnd10 a b = insertInProof a b lemmAnd10Node
+
+lemmAnd00 :: Term -> Term -> Node
+lemmAnd00 a b = insertInProof a b lemmAnd00Node
+
+lemmTo01 :: Term -> Term -> Node
+lemmTo01 a b = insertInProof a b lemmTo01Node
+
+lemmTo11 :: Term -> Term -> Node
+lemmTo11 a b = insertInProof a b lemmTo11Node
+
+lemmTo00 :: Term -> Term -> Node
+lemmTo00 a b = insertInProof a b lemmTo00Node
+
+lemmOr11Node :: Node
+lemmOr11Node = justPeremena $
+    let xx = "A,B |- " in
+          (xx ++) <$> [ "A", "A -> A | B", "A | B"]
+
+
+lemmOr01Node :: Node
+lemmOr01Node = justPeremena $
     let xx = "!A,B |- " in
           (xx ++) <$> ["B", "B -> A | B", "A | B"]
 
-lemmOr10 :: Term -> Term -> Node
-lemmOr10 a b = peremena a b $
+lemmOr10Node :: Node
+lemmOr10Node = justPeremena $
     let xx = "A,!B |- " in
           (xx ++) <$> [ "A", "A -> A | B", "A | B"]
 
-lemmOr00 :: Term -> Term -> Node
-lemmOr00 a b = peremena a b $
+lemmOr00Node :: Node
+lemmOr00Node = justPeremena $
     [ "|- !A -> !B -> !(A|B)",
       "!A |- !B -> !(A|B)",
       "!A, !B |- !(A|B)"
     ]
 
-lemmAnd11 :: Term -> Term -> Node
-lemmAnd11 a b = peremena a b $
+lemmAnd11Node :: Node
+lemmAnd11Node = justPeremena $
     let xx = "A,B |- " in
           (xx ++) <$>
           [ "A", "B",
@@ -158,64 +181,85 @@ lemmAnd11 a b = peremena a b $
             "B -> A & B",
             "A & B"]
 
-lemmAnd01 :: Term -> Term -> Node
-lemmAnd01 a b = peremena a b $
+lemmAnd01Node ::  Node
+lemmAnd01Node = justPeremena $
     let xx = "!A,B |- " in
           (xx ++) <$>
-    [ "!A", "!A -> A & B -> !A"
-      , "A & B -> !A"
-      , "A"
-      , "A & B -> A"
-      , "(A & B -> A) -> (A & B -> !A) -> !(A & B)"
-      , "(A & B -> !A) -> !(A & B)"
-      , "!(A & B)"
+    [ "!A", "!A -> A & B -> !A",
+      "A & B -> !A",
+      "A",
+      "A & B -> A",
+      "(A & B -> A) -> (A & B -> !A) -> !(A & B)",
+      "(A & B -> !A) -> !(A & B)",
+      "!(A & B)"
       ]
 
-lemmAnd10 :: Term -> Term -> Node
-lemmAnd10 a b = peremena a b $
+lemmAnd10Node ::  Node
+lemmAnd10Node = justPeremena $
     let xx = "A,!B |- " in
           (xx ++) <$>
-    [ "!B","!B -> A & B -> !B"
-      , "A & B -> !B"
-      , "A & B -> B"
-      , "(A & B -> B) -> (A & B -> !B) -> !(A & B)"
-      , "(A & B -> !B) -> !(A & B)"
-      , "!(A & B)"
+    [ "!B","!B -> A & B -> !B",
+      "A & B -> !B",
+      "A & B -> B",
+      "(A & B -> B) -> (A & B -> !B) -> !(A & B)",
+      "(A & B -> !B) -> !(A & B)",
+      "!(A & B)"
       ]
 
-lemmAnd00 :: Term -> Term -> Node
-lemmAnd00 a b = peremena a b $
+lemmAnd00Node :: Node
+lemmAnd00Node = justPeremena $
     let xx = "!A,!B |- " in
           (xx ++) <$>
-    [ "!A", "!A -> A & B -> !A"
-      , "A & B -> !A"
-      , "A & B -> A"
-      , "(A & B -> A) -> (A & B -> !A) -> !(A & B)"
-      , "(A & B -> !A) -> !(A & B)"
-      , "!(A & B)"
+    [ "!A", "!A -> A & B -> !A",
+      "A & B -> !A",
+      "A & B -> A",
+      "(A & B -> A) -> (A & B -> !A) -> !(A & B)",
+      "(A & B -> !A) -> !(A & B)",
+      "!(A & B)"
       ]
 
-lemmTo01 :: Term -> Term -> Node
-lemmTo01 a b =
-    peremena a b $
+lemmTo01Node :: Node
+lemmTo01Node  =
+    justPeremena $
     let xx = "!A,B |- " in
           (xx ++) <$>
           [
-           "B"
-          , "B -> A -> B"
-          , "(A -> B)"
+           "B",
+          "B -> A -> B",
+          "(A -> B)"
     ]
 
-lemmTo11 :: Term -> Term -> Node
-lemmTo11 a b =
-    peremena a b $
+lemmTo11Node :: Node
+lemmTo11Node = 
+    justPeremena $
     let xx = "A,B |- " in
           (xx ++) <$>
           [
-           "B"
-          , "B -> A -> B"
-          , "(A -> B)"
+           "B",
+           "B -> A -> B",
+           "(A -> B)"
     ]
+
+lemmTo00Node :: Node
+lemmTo00Node = 
+    let 
+    xx = "!A, !B, A |- " 
+    res =   ((xx ++) <$> [ "A",
+            "A -> !(A -> B) -> A",
+            "!(A -> B) -> A",
+            "!A",
+            "!A -> !(A -> B) -> !A",
+            "!(A -> B) -> !A",
+            "(!(A -> B) -> A) -> (!(A -> B) -> !A) -> !!(A -> B)",
+            "(!(A -> B) -> !A) -> !!(A -> B)",
+            "!!(A -> B)",
+            "!!(A -> B) -> (A -> B)",
+            "A -> B",
+            "B"])
+                ++
+             ["!A, !B|- A -> B"]
+            
+    in justPeremena res
 
 lemmTo10 :: Term -> Term -> Node
 lemmTo10 a b =
@@ -229,26 +273,3 @@ lemmTo10 a b =
     res = moveRight 1 s5
     in
     res
-
-
-
-lemmTo00 :: Term -> Term -> Node
-lemmTo00 a b =
-    peremena a b $
-    let xx = "!A, !B, A |- " in
-    [ xx ++ "A"
-    , xx ++ "A -> !(A -> B) -> A"
-    , xx ++ "!(A -> B) -> A"
-    , xx ++ "!A"
-    , xx ++ "!A -> !(A -> B) -> !A"
-    , xx ++ "!(A -> B) -> !A"
-    , xx ++ "(!(A -> B) -> A) -> (!(A -> B) -> !A) -> !!(A -> B)"
-    , xx ++ "(!(A -> B) -> !A) -> !!(A -> B)"
-    , xx ++ "!!(A -> B)"
-    , xx ++ "!!(A -> B) -> (A -> B)"
-    , xx ++ "A -> B"
-    , xx ++ "B"
-    , "!A, !B|- A -> B"
-    ]
-
-

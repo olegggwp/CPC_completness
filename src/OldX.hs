@@ -106,11 +106,6 @@ getDed2 me (x:xs) =
         then Just (1+length xs) 
         else getDed2 me xs
 
--- isDed :: Row -> Row -> Bool
--- isDed (c1, t1) (c2, t2) =
---     let (c1', t1') = leftDed (c1, t1)
---         (c2', t2') = leftDed (c2, t2)
---     in arePermsEquivalent c1' c2' && t1' == t2'
 
 
 leftDed :: Row -> Row
