@@ -212,11 +212,6 @@ getDed2 me (x:xs) =
         then Just (1+length xs) 
         else getDed2 me xs
 
--- isDed :: Row -> Row -> Bool
--- isDed (c1, t1) (c2, t2) =
---     let (c1', t1') = leftDed (c1, t1)
---         (c2', t2') = leftDed (c2, t2)
---     in arePermsEquivalent c1' c2' && t1' == t2'
 
 
 leftDed :: Row -> Row
@@ -556,7 +551,7 @@ mergeMoves (x:xs) (y:ys) =
 
 reform :: NodeX [Term] -> Node
 
-reform (Hyp me ctx) = thowOnInvalidstr "Hyp " $ InContext $ ctx :- me
+reform (Hyp me ctx) = InContext $ ctx :- me
 
 reform (Ax me axNum ctx) = let
     xx = case axNum of
@@ -571,7 +566,7 @@ reform (Ax me axNum ctx) = let
             9 -> isToSc9 $ fromMaybe (error "reform-9") (isa9 me)
             10 -> isToSc10 $ fromMaybe (error "reform-10") (isa10 me)
             _ -> error "reform: not an ax"
-    in thowOnInvalidstr ("AXIOMS " ++ show axNum  ++ "   -->  " ) $ xx ctx
+    in  xx ctx
 
 reform (MP me nodeFrom1 nodeFrom2 ctx) = 
     -- thowOnInvalidstr ("MP " ++ show me) $
@@ -589,7 +584,7 @@ reform node@(Ded me nodeFrom ctx) = let
     in
     case dir of
         Add -> -- добваить в контекст т е перенести влево
-            thowOnInvalidstr "DED afta add " $
+
             moveLeft $ reform nodeFrom
         Del ->  -- вправо
             -- thowOnInvalidstr "Ded Del " $ 
@@ -598,7 +593,7 @@ reform node@(Ded me nodeFrom ctx) = let
 
 moveRight :: Int -> Node -> Node
 moveRight 0 node = node
-moveRight x node = thowOnInvalidstr "MOVERIGHT " $ let
+moveRight x node =  let
     (g :- t) = nodeGetTRow node
     in case g of 
         [] -> error "moveRight: no moves"
@@ -607,7 +602,7 @@ moveRight x node = thowOnInvalidstr "MOVERIGHT " $ let
 
 
 moveLeft :: Node -> Node
-moveLeft node = thowOnInvalidstr "MOVELEFT " $ let
+moveLeft node =  let
     (g :- t) = nodeGetTRow node
     (a, b) = getAB t
     fromAdded = addToContext [a] node
@@ -927,29 +922,23 @@ getEstimaps names = Data.Map.fromList <$> getEstimaps' names
 
 printSolution :: Term -> IO ()
 printSolution term = do
-    let noda = thowOnInvalidstr "FINAL ERROR" $ optimizeMe $ mm (getVarsUniq term) []
+    let noda = optimizeMe $ mm (getVarsUniq term) []
     printNode 0 noda
-    
-    -- printNode 0 noda
-    -- if xx isNothing then printNode 0 noda else putStrLn "ERROR" 
-    -- printNode 0 noda 
-    -- let estimaps = getEstimaps $ getVarsUniq term
-    -- let proofs = optimizeMe . (`getProof` term) <$> estimaps
-    -- mapM_ (\x -> (x `printNode` 0) *> putStrLn "") proofs
+
 
     where
         mm :: [String] -> [(String, Bool)] -> Node
         mm [] estimap = getProof (Data.Map.fromList estimap) term
         mm (a : xs) estimap = let
             va = V a
-            n1 =thowOnInvalidstr "n1" $ mm xs $ (a, True) : estimap
-            n2 =thowOnInvalidstr "n2" $ mm xs $ (a, False) : estimap
+            n1 = mm xs $ (a, True) : estimap
+            n2 = mm xs $ (a, False) : estimap
             gi = gadded <$> estimap
-            lm = thowOnInvalidstr "SEKV " $ addToContext gi $ sekLemm va term
-            mp1 = thowOnInvalidstr "mp1 " $ Eto (gi :- (((tnot va) :-> term) :-> term)) lm
+            lm = addToContext gi $ sekLemm va term
+            mp1 =  Eto (gi :- (((tnot va) :-> term) :-> term)) lm
                 $ Ito (gi :- (va :-> term))
                 $ n1
-            mp2 = thowOnInvalidstr "mp2" $ Eto (gi :- term) mp1
+            mp2 =  Eto (gi :- term) mp1
                 $ Ito (gi :- ((tnot va) :-> term))
                 $ n2
             in mp2
@@ -1106,34 +1095,27 @@ getLemm estimap (a :-> b) =
     if b == BNOT then
         if evalterm estimap a then
             lemmTo10 a b
-            -- undefined -- a :- !!a
             else
                 InContext $ [tnot a, tnot BNOT] :- (tnot a) -- !a :- !a
     else
 
         case (evalterm estimap a, evalterm estimap b) of
         (False, False) -> lemmTo00 a b
-
         (True, False)  -> lemmTo10 a b
-
         (False, True)  -> lemmTo01 a b
-
         (True, True)   -> lemmTo11 a b
 
 
-getLemm estimap (a `BAnd` b) = thowOnInvalidstr ("BAND " ) $ case (evalterm estimap a, evalterm estimap b) of
-    (False, False) -> thowOnInvalidstr ("BAND00 " ) $ lemmAnd00 a b
-    (True, False)  -> thowOnInvalidstr ("BAND10 " ) $ lemmAnd10 a b
-    (False, True)  -> thowOnInvalidstr ("BAND01 " ) $ lemmAnd01 a b
-    (True, True)   -> thowOnInvalidstr ("BAND11 " ) $ lemmAnd11 a b
+getLemm estimap (a `BAnd` b) = case (evalterm estimap a, evalterm estimap b) of
+    (False, False) -> lemmAnd00 a b
+    (True, False)  -> lemmAnd10 a b
+    (False, True)  -> lemmAnd01 a b
+    (True, True)   -> lemmAnd11 a b
 
 getLemm estimap (a `BOr` b) = case (evalterm estimap a, evalterm estimap b) of
     (False, False) -> lemmOr00 a b
-
     (True, False)  -> lemmOr10 a b
-
     (False, True)  -> lemmOr01 a b
-
     (True, True)   -> lemmOr11 a b
 
 
@@ -1376,31 +1358,26 @@ getVarsUniq = Set.toList . getVars
 getProof :: Map String Bool -> Term -> Node
 getProof estimap t = proofHelper t
     where
-        -- gi = (\x -> 
-        --     case lookup x estimap 
-        --         Just True -> V x 
-        --         Just False -> tnot (V x)
-        --         Nothing -> error "using getProof in wrong way") 
-        -- <$> getVarsUniq t
+
         gi = (\x -> if Map.lookup x estimap == Just True then V x else tnot (V x)) <$> getVarsUniq t
 
         proofHelper :: Term -> Node
 
-        proofHelper (V a) = thowOnInvalidstr "after VA" $ InContext (gi :- modulate estimap (V a))
+        proofHelper (V a) =  InContext (gi :- modulate estimap (V a))
 
         proofHelper BNOT = -- gi :- BNOT :-> BNOT
-            thowOnInvalidstr "after BNOT" $
+            
             Ito (gi :- (BNOT :-> BNOT)) $
             InContext ((BNOT : gi) :- BNOT)
 
         proofHelper alpha =
             let
                 (a, b) = getAB alpha
-                aProof = thowOnInvalidstr "after proofhelper a" $ proofHelper a
-                bProof = thowOnInvalidstr "after proofhelper b" $ proofHelper b
-                lol = thowOnInvalidstr "after getLemm" $ getLemm estimap alpha -- одна из 14ти лемм
+                aProof = proofHelper a
+                bProof = proofHelper b
+                lol =  getLemm estimap alpha -- одна из 14ти лемм
             in
-            thowOnInvalidstr ("after kwazar" ++ show alpha ++ " \nREF " ++ printRef estimap) $ kwazar aProof bProof lol
+            kwazar aProof bProof lol
 
 
 
@@ -1414,12 +1391,7 @@ kwazar na nb nlol =
     where
         step1 = Eto (gi :- (b :-> c)) step2 na
         step2 = Ito (gi :- (a :-> b :-> c))
-            -- $ thowOnInvalidstr ("kwazar bass" ++ 
-            -- "\nNLOL: " ++ printTRow (nodeGetTRow nlol) ++ 
-            -- "\nNA: " ++ printTRow (nodeGetTRow na) ++ 
-            -- "\nNB: " ++ printTRow (nodeGetTRow nlol))
             $ Ito ((a : gi) :- (b :-> c))
-            -- $ Ito (( b : a : gi) :- c) lolWith
             $ lolWith
         lolWith = addToContext gi nlol -- [=одна из 14ти лемм ] с добавлением gi в контекст по всему дереву
         (gi :- a) = nodeGetTRow na

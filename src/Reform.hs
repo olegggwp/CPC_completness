@@ -46,7 +46,7 @@ mergeMoves (x:xs) (y:ys) =
 
 reform :: NodeX [Term] -> Node
 
-reform (Hyp me ctx) = thowOnInvalidstr "Hyp " $ InContext $ ctx :- me
+reform (Hyp me ctx) = InContext $ ctx :- me
 
 reform (Ax me axNum ctx) = let
     xx = case axNum of
@@ -61,7 +61,7 @@ reform (Ax me axNum ctx) = let
             9 -> isToSc9 $ fromMaybe (error "reform-9") (isa9 me)
             10 -> isToSc10 $ fromMaybe (error "reform-10") (isa10 me)
             _ -> error "reform: not an ax"
-    in thowOnInvalidstr ("AXIOMS " ++ show axNum  ++ "   -->  " ) $ xx ctx
+    in  xx ctx
 
 reform (MP me nodeFrom1 nodeFrom2 ctx) = 
     -- thowOnInvalidstr ("MP " ++ show me) $
@@ -79,7 +79,7 @@ reform node@(Ded me nodeFrom ctx) = let
     in
     case dir of
         Add -> -- добваить в контекст т е перенести влево
-            thowOnInvalidstr "DED afta add " $
+
             moveLeft $ reform nodeFrom
         Del ->  -- вправо
             -- thowOnInvalidstr "Ded Del " $ 
@@ -88,7 +88,7 @@ reform node@(Ded me nodeFrom ctx) = let
 
 moveRight :: Int -> Node -> Node
 moveRight 0 node = node
-moveRight x node = thowOnInvalidstr "MOVERIGHT " $ let
+moveRight x node =  let
     (g :- t) = nodeGetTRow node
     in case g of 
         [] -> error "moveRight: no moves"
@@ -97,7 +97,7 @@ moveRight x node = thowOnInvalidstr "MOVERIGHT " $ let
 
 
 moveLeft :: Node -> Node
-moveLeft node = thowOnInvalidstr "MOVELEFT " $ let
+moveLeft node =  let
     (g :- t) = nodeGetTRow node
     (a, b) = getAB t
     fromAdded = addToContext [a] node

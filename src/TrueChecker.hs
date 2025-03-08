@@ -36,31 +36,23 @@ getEstimaps names = Data.Map.fromList <$> getEstimaps' names
 
 printSolution :: Term -> IO ()
 printSolution term = do
-    let noda = 
-                thowOnInvalidstr "FINAL ERROR" $ 
-                optimizeMe $ mm (getVarsUniq term) []
+    let noda = optimizeMe $ mm (getVarsUniq term) []
     printNode 0 noda
-    
-    -- printNode 0 noda
-    -- if xx isNothing then printNode 0 noda else putStrLn "ERROR" 
-    -- printNode 0 noda 
-    -- let estimaps = getEstimaps $ getVarsUniq term
-    -- let proofs = optimizeMe . (`getProof` term) <$> estimaps
-    -- mapM_ (\x -> (x `printNode` 0) *> putStrLn "") proofs
+
 
     where
         mm :: [String] -> [(String, Bool)] -> Node
         mm [] estimap = getProof (Data.Map.fromList estimap) term
         mm (a : xs) estimap = let
             va = V a
-            n1 =thowOnInvalidstr "n1" $ mm xs $ (a, True) : estimap
-            n2 =thowOnInvalidstr "n2" $ mm xs $ (a, False) : estimap
+            n1 = mm xs $ (a, True) : estimap
+            n2 = mm xs $ (a, False) : estimap
             gi = gadded <$> estimap
-            lm = thowOnInvalidstr "SEKV " $ addToContext gi $ sekLemm va term
-            mp1 = thowOnInvalidstr "mp1 " $ Eto (gi :- (((tnot va) :-> term) :-> term)) lm
+            lm = addToContext gi $ sekLemm va term
+            mp1 =  Eto (gi :- (((tnot va) :-> term) :-> term)) lm
                 $ Ito (gi :- (va :-> term))
                 $ n1
-            mp2 = thowOnInvalidstr "mp2" $ Eto (gi :- term) mp1
+            mp2 =  Eto (gi :- term) mp1
                 $ Ito (gi :- ((tnot va) :-> term))
                 $ n2
             in mp2
