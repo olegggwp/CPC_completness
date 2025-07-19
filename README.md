@@ -60,4 +60,4 @@ The input is a single line—a propositional statement written according to the 
 
         You may use the following rules (listed elsewhere, not provided in this text). Premises of rules must appear in the specified order; however, hypotheses within the context can be arbitrarily reordered.
 
-![output semantics](https://github.com/olegggwp/CPC_completness/blob/main/image.png?raw=true)
+![output semantics](https://github.com/olegggwp/CPC_completness/blob/master/image.png?raw=true)
