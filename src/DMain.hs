@@ -9,12 +9,17 @@ import qualified LemmTests
 import PrintUtils (printNode, printRef)
 import Reform (isToSc2, isToSc9, isToSc4, isToSc10, isToSc8, isToSc1, isToSc3, isToSc5, isToSc6, isToSc7)
 import RTL (thowOnInvalidstr)
+import Lemms (sekLemm)
 
 main :: IO ()
 -- main = do
---     let xx = isToSc10 (V "A") []
---     printNode 0 $ xx
---     printNode 0 $ thowOnInvalidstr "haha" $ xx
+    -- let xx = sekLemm (V "A") (V "B")
+    -- let xx = sekLemm (V "A") (V "B")
+    -- let xx = isToSc10 (V "A") []
+    -- let xx = isToSc10 (V "A") []
+    -- let xx = isToSc2 (V "A", V "A", V "A") []
+    -- printNode 0 $ xx
+    -- printNode 0 $ thowOnInvalidstr "haha" $ xx
 -- main = LemmTests.testAll
 -- printSolution (V "A", V "B") (V "A", V "B", V "C")
 
